@@ -390,7 +390,7 @@ def health(): return {"ok":True}
 if os.getenv("RUN_TELEGRAM_POLLING") == "1":
     threading.Thread(target=polling_loop, daemon=True).start()
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=int(os.getenv("PORT", "8080")),
