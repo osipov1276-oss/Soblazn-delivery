@@ -387,6 +387,13 @@ def api_order_status(order_number: str):
 @app.get("/health")
 def health(): return {"ok":True}
 
-if __name__ == "__main__":
+if os.getenv("RUN_TELEGRAM_POLLING") == "1":
     threading.Thread(target=polling_loop, daemon=True).start()
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "8080")), debug=False, use_reloader=False)
+
+if _name_ == "_main_":
+    app.run(
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", "8080")),
+        debug=False,
+        use_reloader=False,
+    )
