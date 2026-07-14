@@ -355,7 +355,7 @@ def api_order():
     else:
         print(text,flush=True)
     username = get_bot_username()
-    bot_link = f"https://t.me/{username}?start=order_{order_number}_{tracking_token}" if username else ""
+    bot_link = f"tg://resolve?domain={username}&start=order_{order_number}_{tracking_token}" if username else ""
     return jsonify({
         "ok": True,
         "total": total,
