@@ -2,3 +2,73 @@
 
 .telegram-link{display:block;text-align:center;text-decoration:none;margin-top:14px;background:#229ED9!important;color:white!important}
 .secondary{width:100%;margin-top:10px;padding:14px;border-radius:14px;border:1px solid #ddd;background:#fff;font-weight:700}
+
+/* === SOBLAZN V8: Мои заказы === */
+.header-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#ordersTop {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.order-history-card {
+  margin: 14px 0;
+  padding: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.order-history-card > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.order-history-card small {
+  display: block;
+  opacity: 0.65;
+  font-size: 12px;
+}
+
+.order-items {
+  margin: 12px 0;
+}
+
+.order-items div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 0;
+  font-size: 14px;
+}
+
+.order-history-total {
+  display: flex;
+  justify-content: space-between;
+  margin: 12px 0;
+  padding-top: 10px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.order-history-card .primary,
+.order-history-card .secondary {
+  width: 100%;
+  margin-top: 8px;
+}
+
+@media (max-width: 420px) {
+  header h1 {
+    font-size: 21px;
+  }
+
+  #ordersTop {
+    padding: 8px 9px;
+    font-size: 11px;
+  }
+}
