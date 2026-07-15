@@ -20,7 +20,7 @@ let menu = [];
 let cart = {};
 let active = 'Все';
 let statusTimer = null;
-
+let checkoutCart = [];
 const money = n => new Intl.NumberFormat('ru-RU').format(Number(n || 0)) + ' ₸';
 
 fetch('/api/menu')
@@ -138,7 +138,9 @@ async function openCart() {
 }
 
 function checkout() {
-  let saved = {};
+    checkoutCart = cartArray();
+
+    let saved = {};
   try {
     saved = JSON.parse(localStorage.getItem('soblazn_customer') || '{}');
   } catch (e) {}
@@ -162,6 +164,8 @@ function checkout() {
 }
 
 async function sendOrder() {
+  const checkoutCart = 
+    cartArray();
   const customer = {
     name: (document.getElementById('name')?.value || '').trim(),
     phone: (document.getElementById('phone')?.value || '').trim(),
@@ -187,7 +191,7 @@ async function sendOrder() {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         initData: tg?.initData || '',
-        cart: cartArray(),
+        cart: checkoutCart,
         customer
       })
     });
