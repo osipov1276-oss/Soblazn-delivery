@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#11100e">
+  <title>SOBLAZN Delivery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">S</div>
+        <div>
+          <small>Семейное кафе</small>
+          <h1>SOBLAZN</h1>
+        </div>
+      </div>
+      <div class="header-buttons">
+        <button id="ordersTop" class="icon-btn orders-btn" onclick="showMyOrders()">
+          <span>👤</span><span class="desktop-label">Мои заказы</span>
+        </button>
+        <button id="cartTop" class="icon-btn cart-btn" aria-label="Корзина">
+          <span>🛒</span><span id="cartCount" class="cart-count">0</span>
+        </button>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow">Доставка по Актау</div>
+        <h2>Любимые блюда<br><span>с доставкой домой</span></h2>
+        <p>Готовим после заказа и привозим горячими.</p>
+        <div class="hero-pills">
+          <span>⚡ Быстро</span>
+          <span>🔥 Горячее</span>
+          <span>🥟 Вкусно</span>
+        </div>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <div class="plate"><span>🥟</span></div>
+        <div class="spark spark-one">✦</div>
+        <div class="spark spark-two">✦</div>
+      </div>
+    </section>
+
+    <section class="search-wrap">
+      <label class="search-box">
+        <span>⌕</span>
+        <input id="search" autocomplete="off" placeholder="Найти блюдо">
+      </label>
+    </section>
+
+    <section class="section-head">
+      <div>
+        <small>Выберите категорию</small>
+        <h2>Наше меню</h2>
+      </div>
+    </section>
+
+    <nav id="cats" class="categories" aria-label="Категории меню"></nav>
+    <main id="products" class="products"></main>
+  </div>
+
+  <div id="cartBar" class="cartbar hidden">
+    <div class="cartbar-info">
+      <span class="cartbar-icon">🛍️</span>
+      <div><b id="barCount"></b><small id="barTotal"></small></div>
+    </div>
+    <button onclick="openCart()">Корзина <span>→</span></button>
+  </div>
+
+  <div id="modal" class="modal hidden" onclick="event.target===this && closeModal()">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <button class="close" onclick="closeModal()" aria-label="Закрыть">✕</button>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

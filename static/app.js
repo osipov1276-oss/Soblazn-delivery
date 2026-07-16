@@ -1,28 +1,20 @@
 const tg = window.Telegram?.WebApp;
-if (tg) {
-  tg.ready();
-  tg.expand();
-}
+if (tg) { tg.ready(); tg.expand(); }
 
 let menu = [];
 let cart = {};
 let active = 'Все';
 let statusTimer = null;
-let checkoutCart = [];
 
-const money = n =>
-  new Intl.NumberFormat('ru-RU').format(Number(n || 0)) + ' ₸';
+const money = n => new Intl.NumberFormat('ru-RU').format(Number(n || 0)) + ' ₸';
 
 fetch('/api/menu')
   .then(r => r.json())
   .then(d => {
-    menu = d.items || [];
+    menu = d.items;
     renderCats();
     render();
     updateCart();
-  })
-  .catch(() => {
-    products.innerHTML = '<p>Не удалось загрузить меню</p>';
   });
 
 function categories() {
@@ -31,28 +23,34 @@ function categories() {
 
 function renderCats() {
   cats.innerHTML = categories().map(c => `
-    <button
-      class="${c === active ? 'active' : ''}"
-      onclick="active=${JSON.stringify(c)};renderCats();render()"
-    >${c}</button>
+    <button class="${c === active ? 'active' : ''}"
+      onclick="active=${JSON.stringify(c)};renderCats();render()">${c}</button>
   `).join('');
 }
 
 function emoji(cat) {
-  return [...String(cat || '')][0] || '🍽';
+  const text = String(cat || '').toLowerCase();
+  const map = [
+    [['чебур'], '🥟'], [['пицц'], '🍕'], [['шашлык', 'гриль', 'мяс'], '🍖'],
+    [['салат'], '🥗'], [['суп', 'перв'], '🍲'], [['бургер'], '🍔'],
+    [['закуск', 'фри'], '🍟'], [['десерт', 'слад'], '🍰'],
+    [['напит', 'лимонад', 'вода'], '🥤'], [['завтрак'], '🍳']
+  ];
+  for (const [keys, icon] of map) {
+    if (keys.some(key => text.includes(key))) return icon;
+  }
+  return '🍽️';
 }
 
 function render() {
-  const q = String(search.value || '').toLowerCase();
+  const q = search.value.toLowerCase();
   const list = menu.filter(x =>
     (active === 'Все' || x.category === active) &&
-    String(x.name || '').toLowerCase().includes(q)
+    x.name.toLowerCase().includes(q)
   );
 
   products.innerHTML = list.map(p => {
-    const id = Number(p.id);
-    const n = cart[id] || 0;
-
+    const n = cart[p.id] || 0;
     return `
       <article class="product">
         <div class="thumb">${emoji(p.category)}</div>
@@ -60,80 +58,62 @@ function render() {
         <div class="price">${money(p.price)}</div>
         ${n ? `
           <div class="qty">
-            <button onclick="change(${id},-1)">−</button>
+            <button onclick="change(${p.id},-1)">−</button>
             <b>${n}</b>
-            <button onclick="change(${id},1)">+</button>
+            <button onclick="change(${p.id},1)">+</button>
           </div>
         ` : `
-          <button class="add" onclick="change(${id},1)">Добавить</button>
+          <button class="add" onclick="change(${p.id},1)">Добавить</button>
         `}
       </article>
     `;
-  }).join('') || '<p>Ничего не найдено</p>';
+  }).join('') || '<div class="empty-state"><div>🔎</div><b>Ничего не найдено</b><small>Попробуйте изменить запрос или категорию</small></div>';
 }
 
 search.oninput = render;
 cartTop.onclick = openCart;
 
-function change(id, delta) {
-  const productId = Number(id);
-  cart[productId] = Math.max(0, Number(cart[productId] || 0) + Number(delta));
-
-  if (!cart[productId]) {
-    delete cart[productId];
-  }
-
+function change(id, d) {
+  cart[id] = Math.max(0, (cart[id] || 0) + d);
+  if (!cart[id]) delete cart[id];
   render();
   updateCart();
 }
 
 function cartArray() {
-  return Object.entries(cart)
-    .map(([id, qty]) => ({
-      id: Number(id),
-      qty: Number(qty)
-    }))
-    .filter(row => row.id > 0 && row.qty > 0);
+  return Object.entries(cart).map(([id, qty]) => ({
+    id: Number(id),
+    qty: Number(qty)
+  }));
 }
 
 function updateCart() {
-  const rows = cartArray();
-  const count = rows.reduce((sum, row) => sum + row.qty, 0);
-  const total = rows.reduce((sum, row) => {
-    const product = menu.find(x => Number(x.id) === row.id);
-    return sum + (product ? Number(product.price) * row.qty : 0);
+  const count = Object.values(cart).reduce((a, b) => a + b, 0);
+  const total = Object.entries(cart).reduce((sum, [id, qty]) => {
+    const product = menu.find(x => Number(x.id) === Number(id));
+    return sum + (product ? product.price * qty : 0);
   }, 0);
 
   cartCount.textContent = count;
   barCount.textContent = count + ' поз.';
   barTotal.textContent = money(total);
-  cartBar.classList.toggle('hidden', count === 0);
+  cartBar.classList.toggle('hidden', !count);
 }
 
 async function openCart() {
-  const currentCart = cartArray();
+  if (!cartArray().length) return;
 
-  if (!currentCart.length) {
-    alert('Корзина пуста');
-    return;
-  }
-
-  const response = await fetch('/api/calculate', {
+  const calc = await fetch('/api/calculate', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({cart: currentCart})
-  });
-
-  const calc = await response.json();
+    body: JSON.stringify({cart: cartArray()})
+  }).then(r => r.json());
 
   modalBody.innerHTML = `
     <h2>Корзина</h2>
-    ${(calc.items || []).map(x => `
+    ${calc.items.map(x => `
       <div class="cartrow">
-        <div>
-          <b>${x.name}</b><br>
-          <small>${money(x.price)} × ${x.qty}</small>
-        </div>
+        <div><b>${x.name}</b><br><small>${money(x.price)} × ${x.qty}</small></div>
         <div>
           <button onclick="change(${x.id},-1);openCart()">−</button>
           ${x.qty}
@@ -149,18 +129,10 @@ async function openCart() {
     </div>
     <button class="primary" onclick="checkout()">Оформить заказ</button>
   `;
-
   modal.classList.remove('hidden');
 }
 
 function checkout() {
-  checkoutCart = cartArray();
-
-  if (!checkoutCart.length) {
-    alert('Корзина пуста. Вернитесь в меню и добавьте блюда заново.');
-    return;
-  }
-
   let saved = {};
   try {
     saved = JSON.parse(localStorage.getItem('soblazn_customer') || '{}');
@@ -198,11 +170,6 @@ async function sendOrder() {
     return;
   }
 
-  if (!checkoutCart.length) {
-    alert('Корзина потерялась. Закройте окно, добавьте блюда и попробуйте снова.');
-    return;
-  }
-
   localStorage.setItem('soblazn_customer', JSON.stringify({
     name: customer.name,
     phone: customer.phone,
@@ -210,39 +177,33 @@ async function sendOrder() {
   }));
 
   try {
-    const response = await fetch('/api/order', {
+    const r = await fetch('/api/order', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         initData: tg?.initData || '',
-        cart: checkoutCart,
+        cart: cartArray(),
         customer
       })
     });
 
-    const data = await response.json();
+    const d = await r.json();
 
-    if (data.ok) {
+    if (d.ok) {
       cart = {};
-      checkoutCart = [];
       updateCart();
       render();
-
       tg?.HapticFeedback?.notificationOccurred('success');
 
       localStorage.setItem('soblazn_last_order', JSON.stringify({
-        order_number: data.order_number,
-        tracking_token: data.tracking_token,
-        bot_link: data.bot_link || ''
+        order_number: d.order_number,
+        tracking_token: d.tracking_token,
+        bot_link: d.bot_link || ''
       }));
 
-      showOrderStatus(
-        data.order_number,
-        data.tracking_token,
-        data.bot_link || ''
-      );
+      showOrderStatus(d.order_number, d.tracking_token, d.bot_link || '');
     } else {
-      alert(data.error || 'Ошибка отправки заказа');
+      alert(d.error || 'Ошибка отправки заказа');
     }
   } catch (e) {
     alert('Не удалось связаться с сервером.');
@@ -267,11 +228,9 @@ function statusRank(status) {
 
 function renderStatusCard(d, orderNumber, token, botLink) {
   const rank = statusRank(d.status);
-
   const progress = statusSteps.map((step, index) => `
     <div class="trackstep ${index <= rank ? 'done' : ''} ${index === rank ? 'current' : ''}">
-      <span>${step[1]}</span>
-      <small>${step[2]}</small>
+      <span>${step[1]}</span><small>${step[2]}</small>
     </div>
   `).join('');
 
@@ -286,8 +245,7 @@ function renderStatusCard(d, orderNumber, token, botLink) {
       ${botLink ? `
         <a class="primary telegram-link" href="${botLink}">
           📲 Открыть Telegram и получать статусы
-        </a>
-      ` : ''}
+        </a>` : ''}
       <button class="secondary" onclick="showMyOrders()">👤 Все мои заказы</button>
       <button class="secondary" onclick="closeModal()">Свернуть</button>
     </div>
@@ -304,22 +262,16 @@ function renderStatusCard(d, orderNumber, token, botLink) {
 
 async function fetchOrderStatus(orderNumber, token, botLink) {
   try {
-    const response = await fetch(
+    const r = await fetch(
       `/api/order_status/${encodeURIComponent(orderNumber)}?token=${encodeURIComponent(token)}`
     );
-    const data = await response.json();
-
-    if (data.ok) {
-      renderStatusCard(data, orderNumber, token, botLink);
-    }
+    const d = await r.json();
+    if (d.ok) renderStatusCard(d, orderNumber, token, botLink);
   } catch (e) {}
 }
 
 function showOrderStatus(orderNumber, token, botLink) {
-  if (statusTimer) {
-    clearInterval(statusTimer);
-  }
-
+  if (statusTimer) clearInterval(statusTimer);
   fetchOrderStatus(orderNumber, token, botLink);
   statusTimer = setInterval(
     () => fetchOrderStatus(orderNumber, token, botLink),
@@ -328,19 +280,13 @@ function showOrderStatus(orderNumber, token, botLink) {
 }
 
 function formatOrderDate(value) {
-  if (!value) {
-    return '';
-  }
-
+  if (!value) return '';
   const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? value
-    : date.toLocaleString('ru-RU');
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('ru-RU');
 }
 
 async function showMyOrders() {
   let customer = {};
-
   try {
     customer = JSON.parse(localStorage.getItem('soblazn_customer') || '{}');
   } catch (e) {}
@@ -349,17 +295,14 @@ async function showMyOrders() {
 
   if (!tg?.initData && !phone) {
     phone = prompt('Введите номер телефона, который использовали при заказе') || '';
-
-    if (!phone.trim()) {
-      return;
-    }
+    if (!phone.trim()) return;
   }
 
   modalBody.innerHTML = '<h2>Мои заказы</h2><p>Загрузка истории...</p>';
   modal.classList.remove('hidden');
 
   try {
-    const response = await fetch('/api/my_orders', {
+    const r = await fetch('/api/my_orders', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
@@ -368,17 +311,14 @@ async function showMyOrders() {
       })
     });
 
-    const data = await response.json();
+    const d = await r.json();
 
-    if (!data.ok) {
-      modalBody.innerHTML = `
-        <h2>Мои заказы</h2>
-        <p>${data.error || 'Не удалось загрузить заказы'}</p>
-      `;
+    if (!d.ok) {
+      modalBody.innerHTML = `<h2>Мои заказы</h2><p>${d.error || 'Не удалось загрузить заказы'}</p>`;
       return;
     }
 
-    if (!data.orders.length) {
+    if (!d.orders.length) {
       modalBody.innerHTML = `
         <h2>Мои заказы</h2>
         <p>История заказов пока пустая.</p>
@@ -389,7 +329,7 @@ async function showMyOrders() {
 
     modalBody.innerHTML = `
       <h2>Мои заказы</h2>
-      ${data.orders.map(order => `
+      ${d.orders.map(order => `
         <div class="order-history-card">
           <div>
             <b>Заказ №${order.order_number}</b>
@@ -405,8 +345,7 @@ async function showMyOrders() {
             `).join('')}
           </div>
           <div class="order-history-total">
-            <span>Итого</span>
-            <b>${money(order.total)}</b>
+            <span>Итого</span><b>${money(order.total)}</b>
           </div>
           <button class="primary"
             onclick='repeatOrder(${JSON.stringify(order.cart || [])})'>
@@ -422,10 +361,7 @@ async function showMyOrders() {
       `).join('')}
     `;
   } catch (e) {
-    modalBody.innerHTML = `
-      <h2>Мои заказы</h2>
-      <p>Не удалось связаться с сервером.</p>
-    `;
+    modalBody.innerHTML = '<h2>Мои заказы</h2><p>Не удалось связаться с сервером.</p>';
   }
 }
 
@@ -434,9 +370,8 @@ function repeatOrder(savedCart) {
 
   for (const row of savedCart || []) {
     const product = menu.find(item => Number(item.id) === Number(row.id));
-
     if (product && Number(row.qty) > 0) {
-      cart[Number(row.id)] = Number(row.qty);
+      cart[row.id] = Number(row.qty);
     }
   }
 
