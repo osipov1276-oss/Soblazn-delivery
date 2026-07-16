@@ -372,6 +372,16 @@ PACKAGING_PRICES = {
 with open(BASE_DIR / "menu.json", encoding="utf-8") as menu_file:
     MENU = json.load(menu_file)
 
+# Фото меню хранятся в static/menu_photos. Если у блюда уже указано
+# собственное поле image/photo, оно сохраняется. Остальным фотография
+# назначается по порядку, поэтому названия, цены и категории не меняются.
+MENU_PHOTO_DIR = BASE_DIR / "static" / "menu_photos"
+MENU_PHOTOS = sorted(MENU_PHOTO_DIR.glob("photo_*.webp")) if MENU_PHOTO_DIR.exists() else []
+for index, product in enumerate(MENU):
+    if not any(product.get(key) for key in ("image", "photo", "image_url", "photo_url")):
+        if index < len(MENU_PHOTOS):
+            product["image"] = f"/static/menu_photos/{MENU_PHOTOS[index].name}"
+
 PRODUCTS = {int(product["id"]): product for product in MENU}
 
 
