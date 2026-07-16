@@ -5,99 +5,78 @@ let menu = [];
 let cart = {};
 let active = 'Все';
 let statusTimer = null;
+let favorites = new Set(JSON.parse(localStorage.getItem('soblazn_favorites') || '[]').map(Number));
 
 const money = n => new Intl.NumberFormat('ru-RU').format(Number(n || 0)) + ' ₸';
+const esc = value => String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 
 fetch('/api/menu')
   .then(r => r.json())
   .then(d => {
-    menu = d.items;
+    menu = Array.isArray(d.items) ? d.items : [];
     renderCats();
     render();
     updateCart();
+  })
+  .catch(() => {
+    products.innerHTML = '<div class="empty-state"><div>⚠️</div><b>Меню временно недоступно</b><small>Обновите страницу через минуту</small></div>';
   });
 
-function categories() {
-  return ['Все', ...new Set(menu.map(x => x.category))];
-}
-
+function categories() { return ['Все', ...new Set(menu.map(x => x.category).filter(Boolean))]; }
 function renderCats() {
-  cats.innerHTML = categories().map(c => `
-    <button class="${c === active ? 'active' : ''}"
-      onclick="active=${JSON.stringify(c)};renderCats();render()">${c}</button>
-  `).join('');
+  cats.innerHTML = categories().map(c => `<button class="${c === active ? 'active' : ''}" onclick='setCategory(${JSON.stringify(c)})'>${esc(c)}</button>`).join('');
 }
-
+function setCategory(category){ active=category; renderCats(); render(); }
 function emoji(cat) {
   const text = String(cat || '').toLowerCase();
-  const map = [
-    [['чебур'], '🥟'], [['пицц'], '🍕'], [['шашлык', 'гриль', 'мяс'], '🍖'],
-    [['салат'], '🥗'], [['суп', 'перв'], '🍲'], [['бургер'], '🍔'],
-    [['закуск', 'фри'], '🍟'], [['десерт', 'слад'], '🍰'],
-    [['напит', 'лимонад', 'вода'], '🥤'], [['завтрак'], '🍳']
-  ];
-  for (const [keys, icon] of map) {
-    if (keys.some(key => text.includes(key))) return icon;
-  }
+  const map = [[['чебур','варен','пельмен'],'🥟'],[['пицц'],'🍕'],[['шашлык','гриль','мяс'],'🍖'],[['салат'],'🥗'],[['суп','перв'],'🍲'],[['бургер'],'🍔'],[['закуск','фри','гарнир'],'🍟'],[['десерт','слад'],'🍰'],[['напит','лимонад','вода'],'🥤'],[['завтрак'],'🍳'],[['паста'],'🍝']];
+  for (const [keys, icon] of map) if (keys.some(k => text.includes(k))) return icon;
   return '🍽️';
 }
-
+function badgeFor(p){
+  const text=(p.name+' '+p.category).toLowerCase();
+  if(text.includes('чебур')) return 'Хит';
+  if(text.includes('бургер')||text.includes('пицц')) return 'Популярное';
+  if(Number(p.id)%7===0) return 'Рекомендуем';
+  return '';
+}
+function imageFor(p){ return p.image || p.photo || p.image_url || p.photo_url || ''; }
+function descriptionFor(p){ return p.description || p.desc || 'Готовим после оформления заказа'; }
 function render() {
-  const q = search.value.toLowerCase();
-  const list = menu.filter(x =>
-    (active === 'Все' || x.category === active) &&
-    x.name.toLowerCase().includes(q)
-  );
-
+  const q = String(search.value || '').trim().toLowerCase();
+  const list = menu.filter(x => (active === 'Все' || x.category === active) && String(x.name || '').toLowerCase().includes(q));
   products.innerHTML = list.map(p => {
     const n = cart[p.id] || 0;
-    return `
-      <article class="product">
-        <div class="thumb">${emoji(p.category)}</div>
-        <h3>${p.name}</h3>
-        <div class="price">${money(p.price)}</div>
-        ${n ? `
-          <div class="qty">
-            <button onclick="change(${p.id},-1)">−</button>
-            <b>${n}</b>
-            <button onclick="change(${p.id},1)">+</button>
-          </div>
-        ` : `
-          <button class="add" onclick="change(${p.id},1)">Добавить</button>
-        `}
-      </article>
-    `;
-  }).join('') || '<div class="empty-state"><div>🔎</div><b>Ничего не найдено</b><small>Попробуйте изменить запрос или категорию</small></div>';
+    const image = imageFor(p);
+    const badge = badgeFor(p);
+    const fav = favorites.has(Number(p.id));
+    return `<article class="product">
+      <div class="thumb">
+        ${image ? `<img src="${esc(image)}" alt="${esc(p.name)}" loading="lazy" onerror="this.remove();this.parentNode.querySelector('.food-emoji').style.display='block'">` : ''}
+        <span class="food-emoji" ${image ? 'style="display:none"' : ''}>${emoji(p.category)}</span>
+        ${badge ? `<span class="badge">${badge}</span>` : ''}
+        <button class="fav-btn ${fav ? 'active' : ''}" onclick="toggleFavorite(${Number(p.id)});event.stopPropagation()" aria-label="Избранное">${fav ? '♥' : '♡'}</button>
+      </div>
+      <div class="product-body"><h3>${esc(p.name)}</h3><p class="product-desc">${esc(descriptionFor(p))}</p>
+      <div class="product-foot"><div class="price">${money(p.price)}</div>
+      ${n ? `<div class="qty"><button onclick="change(${Number(p.id)},-1)">−</button><b>${n}</b><button onclick="change(${Number(p.id)},1)">+</button></div>` : `<button class="add" onclick="change(${Number(p.id)},1)">Добавить</button>`}
+      </div></div></article>`;
+  }).join('') || '<div class="empty-state"><div>🔎</div><b>Ничего не найдено</b><small>Попробуйте другую категорию или запрос</small></div>';
 }
-
+function toggleFavorite(id){ favorites.has(id) ? favorites.delete(id) : favorites.add(id); localStorage.setItem('soblazn_favorites',JSON.stringify([...favorites])); tg?.HapticFeedback?.selectionChanged(); render(); }
+function showFavorites(){
+  const list=menu.filter(p=>favorites.has(Number(p.id)));
+  modalBody.innerHTML=`<h2>Избранное</h2>${list.length?list.map(p=>`<div class="favorite-card"><div><b>${esc(p.name)}</b><br><small>${money(p.price)}</small></div><button onclick="change(${Number(p.id)},1);showFavorites()">Добавить</button></div>`).join(''):'<div class="empty-state"><div>♡</div><b>Пока пусто</b><small>Нажимайте сердечко на любимых блюдах</small></div>'}`;
+  modal.classList.remove('hidden');
+}
 search.oninput = render;
 cartTop.onclick = openCart;
-
-function change(id, d) {
-  cart[id] = Math.max(0, (cart[id] || 0) + d);
-  if (!cart[id]) delete cart[id];
-  render();
-  updateCart();
-}
-
-function cartArray() {
-  return Object.entries(cart).map(([id, qty]) => ({
-    id: Number(id),
-    qty: Number(qty)
-  }));
-}
-
+function change(id, d) { cart[id] = Math.max(0, (cart[id] || 0) + d); if (!cart[id]) delete cart[id]; tg?.HapticFeedback?.impactOccurred('light'); render(); updateCart(); }
+function cartArray() { return Object.entries(cart).map(([id, qty]) => ({id:Number(id),qty:Number(qty)})); }
 function updateCart() {
-  const count = Object.values(cart).reduce((a, b) => a + b, 0);
-  const total = Object.entries(cart).reduce((sum, [id, qty]) => {
-    const product = menu.find(x => Number(x.id) === Number(id));
-    return sum + (product ? product.price * qty : 0);
-  }, 0);
-
-  cartCount.textContent = count;
-  barCount.textContent = count + ' поз.';
-  barTotal.textContent = money(total);
-  cartBar.classList.toggle('hidden', !count);
+  const count=Object.values(cart).reduce((a,b)=>a+b,0);
+  const total=Object.entries(cart).reduce((sum,[id,qty])=>{const p=menu.find(x=>Number(x.id)===Number(id));return sum+(p?p.price*qty:0)},0);
+  cartCount.textContent=count; barCount.textContent=count+' поз.'; barTotal.textContent=money(total); cartBar.classList.toggle('hidden',!count);
 }
 
 async function openCart() {
