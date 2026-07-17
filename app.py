@@ -372,15 +372,126 @@ PACKAGING_PRICES = {
 with open(BASE_DIR / "menu.json", encoding="utf-8") as menu_file:
     MENU = json.load(menu_file)
 
-# Фото меню хранятся в static/menu_photos. Если у блюда уже указано
-# собственное поле image/photo, оно сохраняется. Остальным фотография
-# назначается по порядку, поэтому названия, цены и категории не меняются.
-MENU_PHOTO_DIR = BASE_DIR / "static" / "menu_photos"
-MENU_PHOTOS = sorted(MENU_PHOTO_DIR.glob("photo_*.webp")) if MENU_PHOTO_DIR.exists() else []
-for index, product in enumerate(MENU):
-    if not any(product.get(key) for key in ("image", "photo", "image_url", "photo_url")):
-        if index < len(MENU_PHOTOS):
-            product["image"] = f"/static/menu_photos/{MENU_PHOTOS[index].name}"
+# Правильная привязка фотографий к блюдам по названию.
+# Номера соответствуют проверенным пользователем фотографиям.
+import re
+from difflib import SequenceMatcher
+
+PHOTO_BY_DISH = {
+    "паста с куриным филе и грибами": 1,
+    "десерт от шефа": 2,
+    "куриный шницель с картофельным пюре": 4,
+    "картофельные дольки": 5,
+    "кеспе с кониной": 6,
+    "салат с хрустящим цыпленком и ореховым соусом": 7,
+    "стейк из семги терияки с израильским кускусом": 8,
+    "райс боул с семгой": 9,
+    "кефаль на мангале": 10,
+    "пивное ассорти": 11,
+    "колбаски из курицы": 12,
+    "кефаль с пастой птитим": 13,
+    "говяжьи ребра с картофельным пюре и тыквенным кремом": 14,
+    "кефаль под сливочным соусом терияки и картофельным пюре": 15,
+    "не шакшука": 16,
+    "сырники с яблочным джемом и ванильным кремом": 17,
+    "норвежский завтрак": 18,
+    "блины с курицей": 19,
+    "мидии запеченные": 20,
+    "пицца с охотничьими колбасками и халапеньо": 21,
+    "блинчики с курицей": 23,
+    "меренговый рулет": 24,
+    "салат руккола с креветками": 25,
+    "соленья домашние": 27,
+    "мясные деликатесы": 28,
+    "гравлакс из семги": 29,
+    "баварский завтрак": 31,
+    "бургер классная цыпа": 34,
+    "шашлык из баранины": 35,
+    "шашлык из шампиньонов": 36,
+    "люля кебаб из курицы": 37,
+    "креветки к пиву": 38,
+    "фарфалле с семгой и брокколи": 39,
+    "мозговые косточки с чесночным хлебом": 40,
+    "блинчики со сметаной": 43,
+    "пирожное тирамису": 45,
+    "тирамису": 45,
+    "удон с креветками": 46,
+    "тигровые креветки в сливочном соусе": 48,
+    "бургер подружка мясника": 49,
+    "пицца пепперони": 50,
+    "рыбная палитра": 51,
+    "соус тартар к рыбе": 53,
+    "соус тар тар к рыбе": 53,
+    "соус томатный к мясу": 54,
+    "томатный соус к мясу": 54,
+    "салат с телятиной": 55,
+    "сырные палочки с соусом тартар": 56,
+    "пельмени говяжьи с бульоном": 57,
+    "гренки чесночные": 58,
+    "картофельное пюре": 59,
+    "овощная нарезка с брынзой": 61,
+    "печень кебаб": 62,
+    "бургер с тигровыми креветками": 63,
+    "чечил жареный": 64,
+    "пицца куриная bbq": 65,
+    "спагетти карбонара": 66,
+    "каша рисовая с курагой": 67,
+    "рисовая каша с курагой": 67,
+    "стрипсы куриные": 68,
+    "куриные стрипсы": 68,
+    "тальятелле с креветками": 69,
+    "тальятелли с креветками": 69,
+    "мороженое": 70,
+    "рис": 71,
+    "шашлык из курицы": 72,
+    "запеченные на мангале овощи": 73,
+    "овощи на мангале": 73,
+    "чизкейк с нутеллой": 75,
+    "колбаски из говядины": 76,
+}
+
+
+def normalize_dish_name(value: str) -> str:
+    text = str(value or "").lower().replace("ё", "е")
+    text = text.replace("&", " ").replace("bbq", "bbq")
+    text = re.sub(r"[^a-zа-я0-9]+", " ", text)
+    return " ".join(text.split())
+
+
+NORMALIZED_PHOTOS = {
+    normalize_dish_name(name): number for name, number in PHOTO_BY_DISH.items()
+}
+
+
+def find_photo_number(product_name: str):
+    normalized = normalize_dish_name(product_name)
+    if normalized in NORMALIZED_PHOTOS:
+        return NORMALIZED_PHOTOS[normalized]
+
+    # Небольшие различия в написании: «семга/сёмга», дефисы, порядок слов.
+    product_words = set(normalized.split())
+    best_number = None
+    best_score = 0.0
+    for known_name, number in NORMALIZED_PHOTOS.items():
+        known_words = set(known_name.split())
+        overlap = len(product_words & known_words) / max(1, len(product_words | known_words))
+        similarity = SequenceMatcher(None, normalized, known_name).ratio()
+        score = similarity * 0.7 + overlap * 0.3
+        if score > best_score:
+            best_score = score
+            best_number = number
+    return best_number if best_score >= 0.84 else None
+
+
+for product in MENU:
+    # Удаляем старую случайную фотографию и назначаем только проверенную.
+    for key in ("image", "photo", "image_url", "photo_url"):
+        product.pop(key, None)
+    photo_number = find_photo_number(product.get("name", ""))
+    if photo_number:
+        photo_path = BASE_DIR / "static" / "menu_photos" / f"photo_{photo_number:03d}.webp"
+        if photo_path.exists():
+            product["image"] = f"/static/menu_photos/photo_{photo_number:03d}.webp"
 
 PRODUCTS = {int(product["id"]): product for product in MENU}
 
