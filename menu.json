@@ -4,22 +4,24 @@
     "category": "🍳 Завтраки",
     "name": "Блинчики со сметаной (3 шт.)",
     "price": 1100,
-   "изображение": "/static/images/ChatGPT Image 18 jun. 2026 г., 14_56_55.png",
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_001.webp"
   },
   {
     "id": 2,
     "category": "🍳 Завтраки",
     "name": "Блины с курицей (3 шт.)",
     "price": 2700,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_002.webp"
   },
   {
     "id": 3,
     "category": "🍳 Завтраки",
     "name": "Глазунья с куриным филе и лёгким салатом",
     "price": 2100,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_003.webp"
   },
   {
     "id": 4,
@@ -33,21 +35,24 @@
     "category": "🍳 Завтраки",
     "name": "Завтрак Баварский",
     "price": 2500,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_005.webp"
   },
   {
     "id": 6,
     "category": "🍳 Завтраки",
     "name": "Английский завтрак",
     "price": 3000,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_006.webp"
   },
   {
     "id": 7,
     "category": "🍳 Завтраки",
     "name": "Каша овсяная",
     "price": 1300,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_007.webp"
   },
   {
     "id": 8,
@@ -75,14 +80,16 @@
     "category": "🍳 Завтраки",
     "name": "Плоский круассан с сёмгой",
     "price": 2900,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_011.webp"
   },
   {
     "id": 12,
     "category": "🍳 Завтраки",
     "name": "Скрембл с креветками",
     "price": 3200,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_012.webp"
   },
   {
     "id": 13,
@@ -96,7 +103,8 @@
     "category": "🍳 Завтраки",
     "name": "Сырники с цукатами и кремом манго",
     "price": 2800,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_014.webp"
   },
   {
     "id": 15,
@@ -110,21 +118,24 @@
     "category": "🍳 Завтраки",
     "name": "Блины с сёмгой",
     "price": 3200,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_016.webp"
   },
   {
     "id": 17,
     "category": "🍲 Супы",
     "name": "Борщ с курдюком",
     "price": 2200,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_017.webp"
   },
   {
     "id": 18,
     "category": "🍲 Супы",
     "name": "Борщ с салом",
     "price": 2200,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_018.webp"
   },
   {
     "id": 19,
@@ -138,63 +149,72 @@
     "category": "🍲 Супы",
     "name": "Крем-суп грибной",
     "price": 2200,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_020.webp"
   },
   {
     "id": 21,
     "category": "🍲 Супы",
     "name": "Куриный бульон с пирожками",
     "price": 2500,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_021.webp"
   },
   {
     "id": 22,
     "category": "🍲 Супы",
     "name": "Мясной суп солянка",
     "price": 3200,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_022.webp"
   },
   {
     "id": 23,
     "category": "🍲 Супы",
     "name": "Рыбный суп уха",
     "price": 2700,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_023.webp"
   },
   {
     "id": 24,
     "category": "🍲 Супы",
     "name": "Суп Том Ям с курицей",
     "price": 3700,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_024.webp"
   },
   {
     "id": 25,
     "category": "🍲 Супы",
     "name": "Суп Том Ям с морепродуктами",
     "price": 5800,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_025.webp"
   },
   {
     "id": 26,
     "category": "🍲 Супы",
     "name": "Суп лапша по-домашнему",
     "price": 2000,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_026.webp"
   },
   {
     "id": 27,
     "category": "🍲 Супы",
     "name": "Суп чечевичный",
     "price": 1800,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_027.webp"
   },
   {
     "id": 28,
     "category": "🍲 Супы",
     "name": "Тыквенный суп",
     "price": 1800,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_028.webp"
   },
   {
     "id": 29,
