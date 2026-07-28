@@ -5,12 +5,14 @@ import os
 import threading
 import time
 import secrets
+from functools import wraps
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import parse_qsl
+from werkzeug.utils import secure_filename
 
 import requests
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, redirect, url_for, session, flash
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -29,6 +31,10 @@ def load_env_file(path: Path) -> None:
 
 load_env_file(BASE_DIR / "bot_config.env")
 app = Flask(__name__)
+app.secret_key = os.getenv("SECRET_KEY", "change-this-secret-in-render")
+app.config["MAX_CONTENT_LENGTH"] = 12 * 1024 * 1024
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "soblazn2026")
+ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 COURIER_CHAT_ID = os.getenv("COURIER_CHAT_ID", "-1004342107012").strip()
 DELIVERY_FEE = int(os.getenv("DELIVERY_FEE", "1000"))
@@ -554,7 +560,7 @@ def calculate(cart):
         product = PRODUCTS.get(int(row.get("id", 0)))
         qty = max(0, int(row.get("qty", 0)))
 
-        if not product or qty < 1:
+        if not product or product.get("hidden", False) or qty < 1:
             continue
 
         total = product["price"] * qty
@@ -657,16 +663,127 @@ def customer_key(init_data: str, phone: str) -> str:
     return ""
 
 
+
+def save_menu() -> None:
+    (BASE_DIR / "menu.json").write_text(
+        json.dumps(MENU, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    global PRODUCTS
+    PRODUCTS = {int(product["id"]): product for product in MENU}
+
+
+def admin_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not session.get("admin_logged_in"):
+            return redirect(url_for("admin_login"))
+        return view(*args, **kwargs)
+    return wrapped
+
+
+def allowed_image(filename: str) -> bool:
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+
+
 @app.get("/")
 def index():
     return render_template("index.html")
+
+
+
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        if secrets.compare_digest(password, ADMIN_PASSWORD):
+            session["admin_logged_in"] = True
+            return redirect(url_for("admin_panel"))
+        flash("Неверный пароль", "error")
+    return render_template("admin_login.html")
+
+
+@app.get("/admin/logout")
+def admin_logout():
+    session.clear()
+    return redirect(url_for("admin_login"))
+
+
+@app.get("/admin")
+@admin_required
+def admin_panel():
+    categories = sorted({str(item.get("category", "Без категории")) for item in MENU})
+    return render_template("admin.html", items=MENU, categories=categories)
+
+
+@app.post("/admin/item/<int:item_id>/save")
+@admin_required
+def admin_save_item(item_id: int):
+    item = next((row for row in MENU if int(row.get("id", 0)) == item_id), None)
+    if not item:
+        flash("Блюдо не найдено", "error")
+        return redirect(url_for("admin_panel"))
+
+    item["name"] = request.form.get("name", item.get("name", "")).strip()
+    item["category"] = request.form.get("category", item.get("category", "")).strip()
+    item["description"] = request.form.get("description", "").strip()
+    try:
+        item["price"] = max(0, int(request.form.get("price", item.get("price", 0))))
+    except (TypeError, ValueError):
+        flash("Цена должна быть числом", "error")
+        return redirect(url_for("admin_panel", edit=item_id))
+
+    item["hidden"] = request.form.get("hidden") == "on"
+    image = request.files.get("image")
+    if image and image.filename:
+        if not allowed_image(image.filename):
+            flash("Разрешены PNG, JPG, JPEG и WEBP", "error")
+            return redirect(url_for("admin_panel", edit=item_id))
+        ext = secure_filename(image.filename).rsplit(".", 1)[1].lower()
+        upload_dir = BASE_DIR / "static" / "uploads"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        filename = f"dish_{item_id}_{int(time.time())}.{ext}"
+        image.save(upload_dir / filename)
+        item["image"] = f"/static/uploads/{filename}"
+
+    save_menu()
+    flash(f"Сохранено: {item['name']}", "success")
+    return redirect(url_for("admin_panel", edit=item_id))
+
+
+@app.post("/admin/item/add")
+@admin_required
+def admin_add_item():
+    next_id = max((int(row.get("id", 0)) for row in MENU), default=0) + 1
+    name = request.form.get("name", "Новое блюдо").strip() or "Новое блюдо"
+    category = request.form.get("category", "Новинки").strip() or "Новинки"
+    try:
+        price = max(0, int(request.form.get("price", 0)))
+    except (TypeError, ValueError):
+        price = 0
+    MENU.append({"id": next_id, "category": category, "name": name, "price": price, "description": ""})
+    save_menu()
+    flash("Новое блюдо добавлено", "success")
+    return redirect(url_for("admin_panel", edit=next_id))
+
+
+@app.post("/admin/item/<int:item_id>/delete")
+@admin_required
+def admin_delete_item(item_id: int):
+    global MENU
+    before = len(MENU)
+    MENU = [row for row in MENU if int(row.get("id", 0)) != item_id]
+    if len(MENU) != before:
+        save_menu()
+        flash("Блюдо удалено", "success")
+    return redirect(url_for("admin_panel"))
 
 
 @app.get("/api/menu")
 def api_menu():
     return jsonify(
         {
-            "items": MENU,
+            "items": [item for item in MENU if not item.get("hidden", False)],
             "delivery_fee": DELIVERY_FEE,
         }
     )
