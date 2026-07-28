@@ -221,7 +221,8 @@
     "category": "🍝 Паста",
     "name": "Паста Птитим с сёмгой и брокколи",
     "price": 5500,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_029.webp"
   },
   {
     "id": 30,
@@ -242,7 +243,8 @@
     "category": "🍝 Паста",
     "name": "Спагетти с хрустящим цыплёнком в соусе песто",
     "price": 4500,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_032.webp"
   },
   {
     "id": 33,
@@ -263,7 +265,8 @@
     "category": "🍝 Паста",
     "name": "Удон с хрустящей курочкой",
     "price": 3700,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_035.webp"
   },
   {
     "id": 36,
@@ -277,21 +280,24 @@
     "category": "🥗 Салаты",
     "name": "Салат Греческий",
     "price": 3600,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_037.webp"
   },
   {
     "id": 38,
     "category": "🥗 Салаты",
     "name": "Салат Цезарь с хрустящим цыплёнком",
     "price": 3900,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_038.webp"
   },
   {
     "id": 39,
     "category": "🥗 Салаты",
     "name": "Итальянский тёплый салат",
     "price": 3500,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_039.webp"
   },
   {
     "id": 40,
@@ -305,21 +311,24 @@
     "category": "🥗 Салаты",
     "name": "Салат Цезарь с креветками",
     "price": 4200,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_041.webp"
   },
   {
     "id": 42,
     "category": "🥗 Салаты",
     "name": "Салат домашний с помидорами",
     "price": 2000,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_042.webp"
   },
   {
     "id": 43,
     "category": "🥗 Салаты",
     "name": "Салат домашний с помидорами и сметаной",
     "price": 2000,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_043.webp"
   },
   {
     "id": 44,
@@ -333,14 +342,16 @@
     "category": "🥗 Салаты",
     "name": "Салат с жареным сыром",
     "price": 2700,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_045.webp"
   },
   {
     "id": 46,
     "category": "🥗 Салаты",
     "name": "Салат с запечённой свёклой и сыром",
     "price": 2700,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_046.webp"
   },
   {
     "id": 47,
@@ -368,35 +379,40 @@
     "category": "🍖 Горячие блюда",
     "name": "Бефстроганов из телятины с картофельным пюре",
     "price": 5100,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_050.webp"
   },
   {
     "id": 51,
     "category": "🍖 Горячие блюда",
     "name": "Говяжьи рёбра с картофельным пюре",
     "price": 6900,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_051.webp"
   },
   {
     "id": 52,
     "category": "🍖 Горячие блюда",
     "name": "Грудка фаршированная шпинатом и сыром",
     "price": 3600,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_052.webp"
   },
   {
     "id": 53,
     "category": "🍖 Горячие блюда",
     "name": "Жареха с 3 видами мяса",
     "price": 4100,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_053.webp"
   },
   {
     "id": 54,
     "category": "🍖 Горячие блюда",
     "name": "Кефаль под сливочным соусом терияки",
     "price": 3600,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_054.webp"
   },
   {
     "id": 55,
@@ -410,7 +426,8 @@
     "category": "🍖 Горячие блюда",
     "name": "Куриная грудка в сливочно-грибном соусе",
     "price": 3400,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_056.webp"
   },
   {
     "id": 57,
@@ -424,28 +441,32 @@
     "category": "🍖 Горячие блюда",
     "name": "Ломо сальтадо",
     "price": 3600,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_058.webp"
   },
   {
     "id": 59,
     "category": "🍖 Горячие блюда",
     "name": "Медальоны с картофельным пюре",
     "price": 6300,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_059.webp"
   },
   {
     "id": 60,
     "category": "🍖 Горячие блюда",
     "name": "Стейк Рибай",
     "price": 7900,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_060.webp"
   },
   {
     "id": 61,
     "category": "🍖 Горячие блюда",
     "name": "Стейк из сёмги с рисом и лёгким салатом",
     "price": 7300,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_061.webp"
   },
   {
     "id": 62,
@@ -459,21 +480,24 @@
     "category": "🍖 Горячие блюда",
     "name": "Филе судака с жареным картофелем и брокколи",
     "price": 4100,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_063.webp"
   },
   {
     "id": 64,
     "category": "🍖 Горячие блюда",
     "name": "Филе судака с овощами в сливочном соусе",
     "price": 4500,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_064.webp"
   },
   {
     "id": 65,
     "category": "🍖 Горячие блюда",
     "name": "Ягнёнок по-деревенски",
     "price": 6500,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_065.webp"
   },
   {
     "id": 66,
@@ -515,28 +539,32 @@
     "category": "🍔 Бургеры и пицца",
     "name": "Бургер с тигровыми креветками",
     "price": 3700,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_071.webp"
   },
   {
     "id": 72,
     "category": "🍔 Бургеры и пицца",
     "name": "Пицца 4 сыра",
     "price": 4500,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_072.webp"
   },
   {
     "id": 73,
     "category": "🍔 Бургеры и пицца",
     "name": "Пицца Аморе",
     "price": 4100,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_073.webp"
   },
   {
     "id": 74,
     "category": "🍔 Бургеры и пицца",
     "name": "Пицца Маргарита",
     "price": 3400,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_074.webp"
   },
   {
     "id": 75,
@@ -550,7 +578,8 @@
     "category": "🍔 Бургеры и пицца",
     "name": "Пицца Цезарь",
     "price": 4800,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_076.webp"
   },
   {
     "id": 77,
@@ -571,63 +600,72 @@
     "category": "🥟 Чебуреки",
     "name": "Беляши с мясом (3 шт.)",
     "price": 1900,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_079.webp"
   },
   {
     "id": 80,
     "category": "🥟 Чебуреки",
     "name": "Калама с бараниной и говядиной",
     "price": 1300,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_080.webp"
   },
   {
     "id": 81,
     "category": "🥟 Чебуреки",
     "name": "Калама с говядиной",
     "price": 1300,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_081.webp"
   },
   {
     "id": 82,
     "category": "🥟 Чебуреки",
     "name": "Калама с сыром",
     "price": 1500,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_082.webp"
   },
   {
     "id": 83,
     "category": "🥟 Чебуреки",
     "name": "Чебурек с бараниной и говядиной",
     "price": 1400,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_083.webp"
   },
   {
     "id": 84,
     "category": "🥟 Чебуреки",
     "name": "Чебурек с говядиной",
     "price": 1300,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_084.webp"
   },
   {
     "id": 85,
     "category": "🥟 Чебуреки",
     "name": "Чебурек с курицей",
     "price": 1300,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_085.webp"
   },
   {
     "id": 86,
     "category": "🥟 Чебуреки",
     "name": "Чебурек с сыром",
     "price": 1500,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_086.webp"
   },
   {
     "id": 87,
     "category": "🍢 Шашлык",
     "name": "Дорадо на мангале",
     "price": 7000,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_087.webp"
   },
   {
     "id": 88,
@@ -648,7 +686,8 @@
     "category": "🍢 Шашлык",
     "name": "Люля-кебаб из говядины",
     "price": 2800,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_090.webp"
   },
   {
     "id": 91,
@@ -697,14 +736,16 @@
     "category": "🍢 Шашлык",
     "name": "Шашлык из картофеля с курдюком",
     "price": 2500,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_097.webp"
   },
   {
     "id": 98,
     "category": "🍢 Шашлык",
     "name": "Шашлык из куриных крылышек",
     "price": 2500,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_098.webp"
   },
   {
     "id": 99,
@@ -760,14 +801,16 @@
     "category": "🔥 Горячие закуски",
     "name": "Мини-чебуреки говяжьи",
     "price": 2100,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_106.webp"
   },
   {
     "id": 107,
     "category": "🔥 Горячие закуски",
     "name": "Мини-чебуреки куриные",
     "price": 2100,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_107.webp"
   },
   {
     "id": 108,
@@ -844,14 +887,16 @@
     "category": "🧀 Холодные закуски",
     "name": "Капуста квашеная белая",
     "price": 500,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_118.webp"
   },
   {
     "id": 119,
     "category": "🧀 Холодные закуски",
     "name": "Капуста квашеная красная",
     "price": 500,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_119.webp"
   },
   {
     "id": 120,
@@ -872,7 +917,8 @@
     "category": "🧀 Холодные закуски",
     "name": "Сырная тарелка",
     "price": 5900,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_122.webp"
   },
   {
     "id": 123,
@@ -886,56 +932,64 @@
     "category": "🥟 Вареники и пельмени",
     "name": "Вареники с вишней",
     "price": 2200,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_124.webp"
   },
   {
     "id": 125,
     "category": "🥟 Вареники и пельмени",
     "name": "Вареники с картофелем",
     "price": 1500,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_125.webp"
   },
   {
     "id": 126,
     "category": "🥟 Вареники и пельмени",
     "name": "Вареники с творогом",
     "price": 1600,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_126.webp"
   },
   {
     "id": 127,
     "category": "🥟 Вареники и пельмени",
     "name": "Детские пельмешки",
     "price": 1500,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_127.webp"
   },
   {
     "id": 128,
     "category": "🥟 Вареники и пельмени",
     "name": "Запечённые пельмени с говядиной и мятой",
     "price": 2900,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_128.webp"
   },
   {
     "id": 129,
     "category": "🥟 Вареники и пельмени",
     "name": "Пельмени говяжьи без бульона с бульоном",
     "price": 1800,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_129.webp"
   },
   {
     "id": 130,
     "category": "🥟 Вареники и пельмени",
     "name": "Равиоли с сёмгой",
     "price": 4500,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_130.webp"
   },
   {
     "id": 131,
     "category": "🥟 Вареники и пельмени",
     "name": "Равиоли с сыром",
     "price": 3300,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_131.webp"
   },
   {
     "id": 132,
@@ -949,7 +1003,8 @@
     "category": "🍟 Гарниры",
     "name": "Картофель фри",
     "price": 1200,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_133.webp"
   },
   {
     "id": 134,
@@ -970,7 +1025,8 @@
     "category": "🍟 Гарниры",
     "name": "Овощи гриль",
     "price": 1700,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_136.webp"
   },
   {
     "id": 137,
@@ -998,7 +1054,8 @@
     "category": "🍰 Десерты",
     "name": "Пирожное Брауни",
     "price": 2500,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_140.webp"
   },
   {
     "id": 141,
@@ -1012,21 +1069,24 @@
     "category": "🍰 Десерты",
     "name": "Круассан с Нутеллой",
     "price": 2600,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_142.webp"
   },
   {
     "id": 143,
     "category": "🍰 Десерты",
     "name": "Шоколадный вулкан",
     "price": 2000,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_143.webp"
   },
   {
     "id": 144,
     "category": "🍰 Десерты",
     "name": "Фруктовое ассорти",
     "price": 3200,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_144.webp"
   },
   {
     "id": 145,
@@ -1040,7 +1100,8 @@
     "category": "🍰 Десерты",
     "name": "Чизкейк Сан-Себастьян",
     "price": 2600,
-    "description": ""
+    "description": "",
+    "image": "/static/images/dish_146.webp"
   },
   {
     "id": 147,
