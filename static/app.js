@@ -62,20 +62,34 @@ async function showProfile() {
     ? new Date(guestProfile.created_at).toLocaleDateString('ru-RU', {day:'2-digit', month:'long', year:'numeric'})
     : 'недавно';
   const bonusBalance = Number(guestProfile.bonus_balance || 0);
-  const guestStatus = guestProfile.status || 'Новый гость';
+  const totalSpent = Number(guestProfile.total_spent || 0);
+  const levels = [
+    {name:'Новый гость', icon:'✨', from:0, to:50000},
+    {name:'Бронзовый', icon:'🥉', from:50000, to:150000},
+    {name:'Серебряный', icon:'🥈', from:150000, to:300000},
+    {name:'Золотой', icon:'🥇', from:300000, to:500000},
+    {name:'VIP', icon:'💎', from:500000, to:null}
+  ];
+  const level = levels.find(item => item.to === null || totalSpent < item.to) || levels[levels.length - 1];
+  const nextLevel = levels[levels.indexOf(level) + 1] || null;
+  const progress = level.to ? Math.max(0, Math.min(100, ((totalSpent - level.from) / (level.to - level.from)) * 100)) : 100;
+  const remaining = level.to ? Math.max(0, level.to - totalSpent) : 0;
+
   modalBody.innerHTML = `
-    <div class="profile-cover">
-      <div class="profile-cover-glow"></div>
-      <div class="profile-main">
-        <span class="profile-avatar profile-avatar-large">${esc(initial)}</span>
-        <div class="profile-welcome"><small>Личный кабинет SOBLAZN</small><h2>Здравствуйте, ${esc(firstName)}!</h2><p>${esc(guestProfile.phone)}</p></div>
-      </div>
-      <div class="profile-status-row"><span>🏆 ${esc(guestStatus)}</span><small>С нами с ${esc(createdDate)}</small></div>
+    <div class="club-card">
+      <div class="club-card-shine"></div>
+      <div class="club-card-top"><span class="club-logo">S</span><div><small>SOBLAZN CLUB</small><b>Карта постоянного гостя</b></div><span class="club-chip">✦</span></div>
+      <div class="club-card-person"><span class="profile-avatar profile-avatar-large">${esc(initial)}</span><div><small>Владелец карты</small><h2>${esc(firstName)}</h2><p>${esc(guestProfile.phone)}</p></div></div>
+      <div class="club-balance"><small>Доступно бонусов</small><strong>${new Intl.NumberFormat('ru-RU').format(bonusBalance)}</strong><span>1 бонус = 1 ₸</span></div>
+      <div class="club-card-bottom"><span>${level.icon} ${esc(level.name)}</span><small>С нами с ${esc(createdDate)}</small></div>
     </div>
 
-    <div class="bonus-card">
-      <div><small>Ваш бонусный баланс</small><strong>${money(bonusBalance)}</strong><p>Бонусы скоро можно будет использовать при заказе доставки</p></div>
-      <span class="bonus-star">★</span>
+    <button class="use-bonus-btn" onclick="showBonusInfo()"><span>🎁</span><div><b>Использовать бонусы</b><small>Только при заказе доставки</small></div><i>→</i></button>
+
+    <div class="level-progress-card">
+      <div class="level-progress-head"><div><small>Ваш уровень</small><b>${level.icon} ${esc(level.name)}</b></div>${nextLevel ? `<span>До «${esc(nextLevel.name)}» ещё ${money(remaining)}</span>` : '<span>Максимальный уровень</span>'}</div>
+      <div class="level-track"><i style="width:${progress.toFixed(1)}%"></i></div>
+      <div class="level-scale"><span>${money(totalSpent)}</span>${level.to ? `<span>${money(level.to)}</span>` : '<span>VIP</span>'}</div>
     </div>
 
     <div class="profile-grid profile-grid-modern">
@@ -89,6 +103,10 @@ async function showProfile() {
     <button class="secondary profile-logout" onclick="logoutProfile()">Выйти из профиля</button>
   `;
   modal.classList.remove('hidden');
+}
+
+function showBonusInfo() {
+  alert('Списание бонусов подключим отдельным этапом. Бонусами можно будет оплатить часть стоимости блюд только при заказе доставки.');
 }
 
 async function addProfileAddress() {
