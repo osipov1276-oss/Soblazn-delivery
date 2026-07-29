@@ -40,9 +40,13 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 COURIER_CHAT_ID = os.getenv("COURIER_CHAT_ID", "-1004342107012").strip()
 DELIVERY_FEE = int(os.getenv("DELIVERY_FEE", "1000"))
 BOT_USERNAME = ""
+CLUB_BOT_USERNAME = os.getenv("CLUB_BOT_USERNAME", "SOBLAZN_Club_Bot").strip().lstrip("@")
+INTEGRATION_SECRET = os.getenv("INTEGRATION_SECRET", "").strip()
 
 ORDERS_FILE = BASE_DIR / "mini_app_orders.json"
 PROFILES_FILE = BASE_DIR / "guest_profiles.json"
+BONUS_QUEUE_FILE = BASE_DIR / "bonus_sync_queue.json"
+DATA_LOCK = threading.RLock()
 
 
 def normalize_guest_phone(value: str) -> str:
@@ -64,7 +68,30 @@ def load_profiles() -> dict:
 
 
 def save_profiles(profiles: dict) -> None:
-    PROFILES_FILE.write_text(json.dumps(profiles, ensure_ascii=False, indent=2), encoding="utf-8")
+    with DATA_LOCK:
+        PROFILES_FILE.write_text(json.dumps(profiles, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def load_bonus_queue() -> dict:
+    with DATA_LOCK:
+        if not BONUS_QUEUE_FILE.exists():
+            return {}
+        try:
+            return json.loads(BONUS_QUEUE_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+
+
+def save_bonus_queue(queue: dict) -> None:
+    with DATA_LOCK:
+        BONUS_QUEUE_FILE.write_text(
+            json.dumps(queue, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+
+
+def integration_authorized() -> bool:
+    supplied = request.headers.get("X-Integration-Secret", "")
+    return bool(INTEGRATION_SECRET and hmac.compare_digest(supplied, INTEGRATION_SECRET))
 
 
 def load_orders() -> dict:
@@ -270,7 +297,6 @@ def get_bot_username() -> str:
         ).strip()
     except Exception:
         BOT_USERNAME = ""
-
     return BOT_USERNAME
 
 
@@ -820,6 +846,11 @@ def api_profile():
             "phone": profile.get("phone", phone),
             "addresses": profile.get("addresses", []),
             "created_at": profile.get("created_at", ""),
+            "telegram_linked": bool(profile.get("telegram_id")),
+            "telegram_id": profile.get("telegram_id"),
+            "bonus_balance": int(profile.get("bonus_balance", 0)),
+            "total_spent": int(profile.get("total_spent", 0)),
+            "bonus_updated_at": profile.get("bonus_updated_at", ""),
         },
     })
 
@@ -840,6 +871,9 @@ def api_profile_register():
         "phone": phone,
         "pin_hash": generate_password_hash(pin),
         "addresses": [],
+        "bonus_balance": 0,
+        "total_spent": 0,
+        "telegram_id": None,
         "created_at": datetime.now().isoformat(timespec="seconds"),
     }
     save_profiles(profiles)
@@ -884,6 +918,152 @@ def api_profile_address():
         profile["addresses"] = addresses[:5]
         save_profiles(profiles)
     return jsonify({"ok": True, "addresses": profile.get("addresses", [])})
+
+
+@app.post("/api/profile/telegram-link")
+def api_profile_telegram_link():
+    phone = session.get("guest_phone")
+    if not phone:
+        return jsonify({"ok": False, "error": "Сначала войдите в профиль"}), 401
+    profiles = load_profiles()
+    profile = profiles.get(phone)
+    if not profile:
+        return jsonify({"ok": False, "error": "Профиль не найден"}), 404
+    token = secrets.token_urlsafe(24)
+    profile["telegram_link_token"] = token
+    profile["telegram_link_expires"] = int(time.time()) + 15 * 60
+    save_profiles(profiles)
+    return jsonify({
+        "ok": True,
+        "bot_link": f"https://t.me/{CLUB_BOT_USERNAME}?start=club_{token}",
+        "expires_in": 900,
+    })
+
+
+@app.post("/api/integration/link")
+def api_integration_link():
+    if not integration_authorized():
+        return jsonify({"ok": False, "error": "Нет доступа"}), 403
+    data = request.get_json(silent=True) or {}
+    token = str(data.get("token", "")).strip()
+    telegram_id = str(data.get("telegram_id", "")).strip()
+    phone = normalize_guest_phone(data.get("phone", ""))
+    profiles = load_profiles()
+    matched_phone = None
+    for profile_phone, profile in profiles.items():
+        if (
+            profile.get("telegram_link_token") == token
+            and int(profile.get("telegram_link_expires", 0)) >= int(time.time())
+        ):
+            matched_phone = profile_phone
+            break
+    if not matched_phone:
+        return jsonify({"ok": False, "error": "Код привязки истёк или неверен"}), 404
+    if normalize_guest_phone(matched_phone) != phone:
+        return jsonify({"ok": False, "error": "Номер телефона в Telegram не совпадает с профилем сайта"}), 409
+    profile = profiles[matched_phone]
+    profile.update({
+        "telegram_id": telegram_id,
+        "telegram_username": str(data.get("telegram_username", "")),
+        "bonus_balance": max(0, int(data.get("bonus_balance", 0))),
+        "total_spent": max(0, int(data.get("total_spent", 0))),
+        "bonus_updated_at": datetime.now().isoformat(timespec="seconds"),
+    })
+    profile.pop("telegram_link_token", None)
+    profile.pop("telegram_link_expires", None)
+    save_profiles(profiles)
+    return jsonify({"ok": True, "phone": matched_phone})
+
+
+@app.post("/api/integration/sync")
+def api_integration_sync():
+    if not integration_authorized():
+        return jsonify({"ok": False, "error": "Нет доступа"}), 403
+    data = request.get_json(silent=True) or {}
+    telegram_id = str(data.get("telegram_id", "")).strip()
+    phone = normalize_guest_phone(data.get("phone", ""))
+    profiles = load_profiles()
+    matched_phone = None
+    for profile_phone, profile in profiles.items():
+        if str(profile.get("telegram_id", "")) == telegram_id:
+            matched_phone = profile_phone
+            break
+    if not matched_phone and phone in profiles:
+        matched_phone = phone
+    if not matched_phone:
+        return jsonify({"ok": False, "error": "Связанный профиль не найден"}), 404
+    profile = profiles[matched_phone]
+    profile["telegram_id"] = telegram_id
+    profile["bonus_balance"] = max(0, int(data.get("bonus_balance", 0)))
+    profile["total_spent"] = max(0, int(data.get("total_spent", 0)))
+    profile["bonus_updated_at"] = datetime.now().isoformat(timespec="seconds")
+    save_profiles(profiles)
+    return jsonify({"ok": True})
+
+
+@app.get("/api/integration/pending-spends")
+def api_integration_pending_spends():
+    if not integration_authorized():
+        return jsonify({"ok": False, "error": "Нет доступа"}), 403
+    queue = load_bonus_queue()
+    now = int(time.time())
+    result = []
+    changed = False
+    for transaction_id, item in queue.items():
+        status = item.get("status")
+        if status == "processing" and now - int(item.get("processing_at", 0)) > 90:
+            item["status"] = "pending"
+            status = "pending"
+            changed = True
+        if status == "pending" and len(result) < 20:
+            item["status"] = "processing"
+            item["processing_at"] = now
+            changed = True
+            result.append({
+                "transaction_id": transaction_id,
+                "telegram_id": item.get("telegram_id"),
+                "amount": int(item.get("amount", 0)),
+                "order_number": item.get("order_number"),
+            })
+    if changed:
+        save_bonus_queue(queue)
+    return jsonify({"ok": True, "items": result})
+
+
+@app.post("/api/integration/spend-result")
+def api_integration_spend_result():
+    if not integration_authorized():
+        return jsonify({"ok": False, "error": "Нет доступа"}), 403
+    data = request.get_json(silent=True) or {}
+    transaction_id = str(data.get("transaction_id", ""))
+    success = bool(data.get("success"))
+    queue = load_bonus_queue()
+    item = queue.get(transaction_id)
+    if not item:
+        return jsonify({"ok": False, "error": "Операция не найдена"}), 404
+    if item.get("status") in {"completed", "failed"}:
+        return jsonify({"ok": True, "duplicate": True})
+    profiles = load_profiles()
+    phone = item.get("phone")
+    profile = profiles.get(phone)
+    if success:
+        item["status"] = "completed"
+        item["completed_at"] = datetime.now().isoformat(timespec="seconds")
+        if profile:
+            profile["bonus_balance"] = max(0, int(data.get("balance", profile.get("bonus_balance", 0))))
+            profile["total_spent"] = max(0, int(data.get("total_spent", profile.get("total_spent", 0))))
+            profile["bonus_updated_at"] = datetime.now().isoformat(timespec="seconds")
+            save_profiles(profiles)
+    else:
+        item["status"] = "failed"
+        item["error"] = str(data.get("error", "Не удалось списать бонусы"))
+        if profile and not item.get("restored"):
+            profile["bonus_balance"] = int(profile.get("bonus_balance", 0)) + int(item.get("amount", 0))
+            profile["bonus_updated_at"] = datetime.now().isoformat(timespec="seconds")
+            item["restored"] = True
+            save_profiles(profiles)
+    save_bonus_queue(queue)
+    return jsonify({"ok": True})
 
 
 @app.get("/api/menu")
@@ -955,7 +1135,31 @@ def api_order():
                     addresses.insert(0, address)
                     profile["addresses"] = addresses[:5]
                     save_profiles(profiles)
-    total = subtotal + packaging_fee + DELIVERY_FEE
+    base_total = subtotal + packaging_fee + DELIVERY_FEE
+    bonus_used = 0
+    bonus_transaction_id = ""
+    profile_for_bonus = None
+    profiles_for_bonus = None
+    requested_bonus = data.get("bonus_used", 0)
+    try:
+        requested_bonus = int(requested_bonus or 0)
+    except (TypeError, ValueError):
+        requested_bonus = -1
+    if requested_bonus < 0:
+        return jsonify({"ok": False, "error": "Некорректное количество бонусов"}), 400
+    if requested_bonus:
+        if not guest_phone:
+            return jsonify({"ok": False, "error": "Для списания бонусов войдите в профиль"}), 401
+        profiles_for_bonus = load_profiles()
+        profile_for_bonus = profiles_for_bonus.get(guest_phone)
+        if not profile_for_bonus or not profile_for_bonus.get("telegram_id"):
+            return jsonify({"ok": False, "error": "Сначала подключите SOBLAZN CLUB в личном кабинете"}), 409
+        available = int(profile_for_bonus.get("bonus_balance", 0))
+        max_allowed = min(available, subtotal)
+        if requested_bonus > max_allowed:
+            return jsonify({"ok": False, "error": f"Можно использовать не более {max_allowed} бонусов"}), 409
+        bonus_used = requested_bonus
+    total = base_total - bonus_used
 
     item_text = "\n".join(
         f"• {item['name']} × {item['qty']} = {item['total']} ₸"
@@ -988,7 +1192,8 @@ def api_order():
         f"🍽 Блюда: {subtotal} ₸\n"
         f"📦 Упаковка: {packaging_fee} ₸\n"
         f"🚚 Доставка: {DELIVERY_FEE} ₸\n"
-        f"💰 ИТОГО: {total} ₸"
+        + (f"🎁 Бонусами: −{bonus_used} ₸\n" if bonus_used else "")
+        + f"💰 ИТОГО К ОПЛАТЕ: {total} ₸"
     )
 
     order = {
@@ -1025,6 +1230,8 @@ def api_order():
         "subtotal": subtotal,
         "packaging_fee": packaging_fee,
         "delivery_fee": DELIVERY_FEE,
+        "bonus_used": bonus_used,
+        "base_total": base_total,
         "total": total,
         "created_at": datetime.now().isoformat(timespec="seconds"),
     }
@@ -1032,6 +1239,25 @@ def api_order():
     orders = load_orders()
     orders[order_number] = order
     save_orders(orders)
+
+    if bonus_used and profile_for_bonus and profiles_for_bonus is not None:
+        bonus_transaction_id = secrets.token_urlsafe(18)
+        profile_for_bonus["bonus_balance"] = int(profile_for_bonus.get("bonus_balance", 0)) - bonus_used
+        profile_for_bonus["bonus_updated_at"] = datetime.now().isoformat(timespec="seconds")
+        save_profiles(profiles_for_bonus)
+        queue = load_bonus_queue()
+        queue[bonus_transaction_id] = {
+            "status": "pending",
+            "phone": guest_phone,
+            "telegram_id": str(profile_for_bonus.get("telegram_id")),
+            "amount": bonus_used,
+            "order_number": order_number,
+            "created_at": datetime.now().isoformat(timespec="seconds"),
+        }
+        save_bonus_queue(queue)
+        order["bonus_transaction_id"] = bonus_transaction_id
+        orders[order_number] = order
+        save_orders(orders)
 
     if BOT_TOKEN and COURIER_CHAT_ID:
         response = telegram_call(
@@ -1050,6 +1276,12 @@ def api_order():
         if not response.ok:
             orders.pop(order_number, None)
             save_orders(orders)
+            if bonus_used and profile_for_bonus and profiles_for_bonus is not None:
+                profile_for_bonus["bonus_balance"] = int(profile_for_bonus.get("bonus_balance", 0)) + bonus_used
+                save_profiles(profiles_for_bonus)
+                queue = load_bonus_queue()
+                queue.pop(bonus_transaction_id, None)
+                save_bonus_queue(queue)
             return jsonify(
                 {
                     "ok": False,
@@ -1072,6 +1304,7 @@ def api_order():
         {
             "ok": True,
             "total": total,
+            "bonus_used": bonus_used,
             "message": "Заказ отправлен",
             "order_number": order_number,
             "tracking_token": tracking_token,

@@ -85,6 +85,9 @@ async function showProfile() {
     </div>
 
     <button class="use-bonus-btn" onclick="showBonusInfo()"><span>🎁</span><div><b>Использовать бонусы</b><small>Только при заказе доставки</small></div><i>→</i></button>
+    ${guestProfile.telegram_linked
+      ? '<button class="use-bonus-btn telegram-connected"><span>✅</span><div><b>Telegram подключён</b><small>Баланс синхронизируется с SOBLAZN CLUB</small></div><i>✓</i></button>'
+      : '<button class="use-bonus-btn" onclick="connectTelegram()"><span>📲</span><div><b>Подключить SOBLAZN CLUB</b><small>Чтобы видеть и использовать бонусы</small></div><i>→</i></button>'}
 
     <div class="level-progress-card">
       <div class="level-progress-head"><div><small>Ваш уровень</small><b>${level.icon} ${esc(level.name)}</b></div>${nextLevel ? `<span>До «${esc(nextLevel.name)}» ещё ${money(remaining)}</span>` : '<span>Максимальный уровень</span>'}</div>
@@ -106,7 +109,20 @@ async function showProfile() {
 }
 
 function showBonusInfo() {
-  alert('Списание бонусов подключим отдельным этапом. Бонусами можно будет оплатить часть стоимости блюд только при заказе доставки.');
+  if (!guestProfile?.telegram_linked) {
+    alert('Сначала подключите Telegram-бот SOBLAZN CLUB.');
+    return;
+  }
+  alert(`У вас ${Number(guestProfile.bonus_balance || 0)} бонусов. Их можно применить на этапе оформления доставки.`);
+}
+
+async function connectTelegram() {
+  try {
+    const r = await fetch('/api/profile/telegram-link', {method:'POST'});
+    const d = await r.json();
+    if (!d.ok) { alert(d.error || 'Не удалось создать ссылку'); return; }
+    window.location.href = d.bot_link;
+  } catch(e) { alert('Не удалось связаться с сервером'); }
 }
 
 async function addProfileAddress() {
@@ -262,6 +278,12 @@ function checkout() {
         <option>Halyk</option>
         <option>Наличными</option>
       </select>
+      ${guestProfile?.telegram_linked && Number(guestProfile?.bonus_balance || 0) > 0 ? `
+        <div class="checkout-bonus">
+          <label><b>🎁 Использовать бонусы</b><small>Доступно: ${Number(guestProfile.bonus_balance || 0)}</small></label>
+          <input id="bonusUsed" type="number" min="0" max="${Number(guestProfile.bonus_balance || 0)}" value="0" inputmode="numeric">
+          <small>Бонусами оплачиваются только блюда, не доставка и упаковка.</small>
+        </div>` : ''}
       <button class="primary" onclick="sendOrder()">Подтвердить заказ</button>
     </div>
   `;
@@ -294,13 +316,15 @@ async function sendOrder() {
       body: JSON.stringify({
         initData: tg?.initData || '',
         cart: cartArray(),
-        customer
+        customer,
+        bonus_used: Number(document.getElementById('bonusUsed')?.value || 0)
       })
     });
 
     const d = await r.json();
 
     if (d.ok) {
+      await loadProfile();
       cart = {};
       updateCart();
       render();

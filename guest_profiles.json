@@ -1,1 +1,12 @@
-{}
+{
+  "77067292701": {
+    "name": "Александр",
+    "phone": "77067292701",
+    "pin_hash": "scrypt:32768:8:1$AGetIxP4leUOPDXg$6d2f1a8fcf76cfd19bf5f76d12dfb6ece4060c9be776a0ae313094e1da295f9bdfd252a40ff6ed08d6d9361bb69b2f6cd48ea7bf510870b97d372f24af753490",
+    "addresses": [],
+    "bonus_balance": 0,
+    "total_spent": 0,
+    "telegram_id": null,
+    "created_at": "2026-07-29T17:14:36"
+  }
+}
