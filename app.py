@@ -986,14 +986,28 @@ def api_integration_sync():
     phone = normalize_guest_phone(data.get("phone", ""))
     profiles = load_profiles()
     matched_phone = None
+    # Сначала ищем уже привязанный Telegram ID.
     for profile_phone, profile in profiles.items():
         if str(profile.get("telegram_id", "")) == telegram_id:
             matched_phone = profile_phone
             break
-    if not matched_phone and phone in profiles:
-        matched_phone = phone
+
+    # Если Telegram ещё не привязан, автоматически связываем аккаунты
+    # по нормализованному номеру телефона. Проверяем и ключ словаря,
+    # и поле phone внутри профиля, чтобы старые форматы номеров не мешали.
+    if not matched_phone and phone:
+        for profile_phone, profile in profiles.items():
+            key_phone = normalize_guest_phone(profile_phone)
+            saved_phone = normalize_guest_phone(profile.get("phone", profile_phone))
+            if phone in {key_phone, saved_phone}:
+                matched_phone = profile_phone
+                break
+
     if not matched_phone:
-        return jsonify({"ok": False, "error": "Связанный профиль не найден"}), 404
+        return jsonify({
+            "ok": False,
+            "error": "Профиль сайта с таким номером не найден. Войдите на сайте под тем же номером, который указан в SOBLAZN CLUB.",
+        }), 404
     profile = profiles[matched_phone]
     profile["telegram_id"] = telegram_id
     profile["bonus_balance"] = max(0, int(data.get("bonus_balance", 0)))
