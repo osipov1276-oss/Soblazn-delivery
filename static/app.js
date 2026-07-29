@@ -56,16 +56,37 @@ async function showProfile() {
   await loadProfile();
   if (!guestProfile) { profileAuthForm('login'); return; }
   const addresses = guestProfile.addresses || [];
+  const firstName = String(guestProfile.name || 'Гость').trim().split(/\s+/)[0];
+  const initial = firstName.slice(0, 1).toUpperCase();
+  const createdDate = guestProfile.created_at
+    ? new Date(guestProfile.created_at).toLocaleDateString('ru-RU', {day:'2-digit', month:'long', year:'numeric'})
+    : 'недавно';
+  const bonusBalance = Number(guestProfile.bonus_balance || 0);
+  const guestStatus = guestProfile.status || 'Новый гость';
   modalBody.innerHTML = `
-    <div class="profile-head"><span class="profile-avatar">${esc((guestProfile.name || 'Г').slice(0,1).toUpperCase())}</span><div><small>Личный кабинет</small><h2>${esc(guestProfile.name)}</h2><p>${esc(guestProfile.phone)}</p></div></div>
-    <div class="profile-grid">
-      <button onclick="showMyOrders()"><span>📦</span><b>Мои заказы</b><small>История и повтор заказа</small></button>
-      <button onclick="showFavorites()"><span>❤️</span><b>Избранное</b><small>Любимые блюда</small></button>
+    <div class="profile-cover">
+      <div class="profile-cover-glow"></div>
+      <div class="profile-main">
+        <span class="profile-avatar profile-avatar-large">${esc(initial)}</span>
+        <div class="profile-welcome"><small>Личный кабинет SOBLAZN</small><h2>Здравствуйте, ${esc(firstName)}!</h2><p>${esc(guestProfile.phone)}</p></div>
+      </div>
+      <div class="profile-status-row"><span>🏆 ${esc(guestStatus)}</span><small>С нами с ${esc(createdDate)}</small></div>
     </div>
-    <div class="profile-section"><div class="profile-section-title"><h3>Адреса доставки</h3><button onclick="addProfileAddress()">+ Добавить</button></div>
-      ${addresses.length ? addresses.map((a,i)=>`<button class="address-card" onclick="selectProfileAddress(${i})"><span>📍</span><b>${esc(a)}</b></button>`).join('') : '<p class="muted">Сохранённых адресов пока нет.</p>'}
+
+    <div class="bonus-card">
+      <div><small>Ваш бонусный баланс</small><strong>${money(bonusBalance)}</strong><p>Бонусы скоро можно будет использовать при заказе доставки</p></div>
+      <span class="bonus-star">★</span>
     </div>
-    <button class="secondary" onclick="logoutProfile()">Выйти из профиля</button>
+
+    <div class="profile-grid profile-grid-modern">
+      <button onclick="showMyOrders()"><span>📦</span><b>Мои заказы</b><small>История заказов</small><i>→</i></button>
+      <button onclick="showFavorites()"><span>❤️</span><b>Избранное</b><small>Любимые блюда</small><i>→</i></button>
+    </div>
+
+    <div class="profile-section"><div class="profile-section-title"><div><small>Доставка</small><h3>Мои адреса</h3></div><button onclick="addProfileAddress()">+ Добавить</button></div>
+      ${addresses.length ? addresses.map((a,i)=>`<button class="address-card" onclick="selectProfileAddress(${i})"><span>📍</span><b>${esc(a)}</b><i>→</i></button>`).join('') : '<div class="empty-address"><span>📍</span><div><b>Адресов пока нет</b><small>Добавьте адрес, чтобы оформлять заказ быстрее</small></div></div>'}
+    </div>
+    <button class="secondary profile-logout" onclick="logoutProfile()">Выйти из профиля</button>
   `;
   modal.classList.remove('hidden');
 }
