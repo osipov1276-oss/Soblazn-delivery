@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import parse_qsl
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
 
 import requests
 from flask import Flask, jsonify, render_template, request, redirect, url_for, session, flash
@@ -41,6 +42,29 @@ DELIVERY_FEE = int(os.getenv("DELIVERY_FEE", "1000"))
 BOT_USERNAME = ""
 
 ORDERS_FILE = BASE_DIR / "mini_app_orders.json"
+PROFILES_FILE = BASE_DIR / "guest_profiles.json"
+
+
+def normalize_guest_phone(value: str) -> str:
+    digits = "".join(ch for ch in str(value or "") if ch.isdigit())
+    if len(digits) == 10:
+        digits = "7" + digits
+    if len(digits) == 11 and digits.startswith("8"):
+        digits = "7" + digits[1:]
+    return digits
+
+
+def load_profiles() -> dict:
+    if not PROFILES_FILE.exists():
+        return {}
+    try:
+        return json.loads(PROFILES_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def save_profiles(profiles: dict) -> None:
+    PROFILES_FILE.write_text(json.dumps(profiles, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def load_orders() -> dict:
@@ -779,6 +803,89 @@ def admin_delete_item(item_id: int):
     return redirect(url_for("admin_panel"))
 
 
+@app.get("/api/profile")
+def api_profile():
+    phone = session.get("guest_phone")
+    if not phone:
+        return jsonify({"ok": True, "logged_in": False})
+    profile = load_profiles().get(phone)
+    if not profile:
+        session.pop("guest_phone", None)
+        return jsonify({"ok": True, "logged_in": False})
+    return jsonify({
+        "ok": True,
+        "logged_in": True,
+        "profile": {
+            "name": profile.get("name", ""),
+            "phone": profile.get("phone", phone),
+            "addresses": profile.get("addresses", []),
+            "created_at": profile.get("created_at", ""),
+        },
+    })
+
+
+@app.post("/api/profile/register")
+def api_profile_register():
+    data = request.get_json(silent=True) or {}
+    name = str(data.get("name", "")).strip()
+    phone = normalize_guest_phone(data.get("phone", ""))
+    pin = str(data.get("pin", "")).strip()
+    if not name or len(phone) != 11 or not pin.isdigit() or len(pin) != 4:
+        return jsonify({"ok": False, "error": "Введите имя, номер телефона и PIN из 4 цифр"}), 400
+    profiles = load_profiles()
+    if phone in profiles:
+        return jsonify({"ok": False, "error": "Профиль с этим номером уже существует"}), 409
+    profiles[phone] = {
+        "name": name,
+        "phone": phone,
+        "pin_hash": generate_password_hash(pin),
+        "addresses": [],
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    save_profiles(profiles)
+    session["guest_phone"] = phone
+    return jsonify({"ok": True})
+
+
+@app.post("/api/profile/login")
+def api_profile_login():
+    data = request.get_json(silent=True) or {}
+    phone = normalize_guest_phone(data.get("phone", ""))
+    pin = str(data.get("pin", "")).strip()
+    profile = load_profiles().get(phone)
+    if not profile or not check_password_hash(profile.get("pin_hash", ""), pin):
+        return jsonify({"ok": False, "error": "Неверный номер телефона или PIN"}), 401
+    session["guest_phone"] = phone
+    return jsonify({"ok": True})
+
+
+@app.post("/api/profile/logout")
+def api_profile_logout():
+    session.pop("guest_phone", None)
+    return jsonify({"ok": True})
+
+
+@app.post("/api/profile/address")
+def api_profile_address():
+    phone = session.get("guest_phone")
+    if not phone:
+        return jsonify({"ok": False, "error": "Сначала войдите в профиль"}), 401
+    data = request.get_json(silent=True) or {}
+    address = str(data.get("address", "")).strip()
+    if len(address) < 5:
+        return jsonify({"ok": False, "error": "Введите полный адрес"}), 400
+    profiles = load_profiles()
+    profile = profiles.get(phone)
+    if not profile:
+        return jsonify({"ok": False, "error": "Профиль не найден"}), 404
+    addresses = profile.setdefault("addresses", [])
+    if address not in addresses:
+        addresses.insert(0, address)
+        profile["addresses"] = addresses[:5]
+        save_profiles(profiles)
+    return jsonify({"ok": True, "addresses": profile.get("addresses", [])})
+
+
 @app.get("/api/menu")
 def api_menu():
     return jsonify(
@@ -834,6 +941,20 @@ def api_order():
         ), 400
 
     customer = data.get("customer", {})
+    guest_phone = session.get("guest_phone")
+    if guest_phone:
+        profiles = load_profiles()
+        profile = profiles.get(guest_phone)
+        if profile:
+            customer["name"] = profile.get("name") or customer.get("name")
+            customer["phone"] = profile.get("phone") or customer.get("phone")
+            address = str(customer.get("address", "")).strip()
+            if address:
+                addresses = profile.setdefault("addresses", [])
+                if address not in addresses:
+                    addresses.insert(0, address)
+                    profile["addresses"] = addresses[:5]
+                    save_profiles(profiles)
     total = subtotal + packaging_fee + DELIVERY_FEE
 
     item_text = "\n".join(

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css?v=10.1.0">
+  <link rel="stylesheet" href="/static/style.css?v=10.2.0">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -20,7 +20,7 @@
       </a>
       <div class="header-actions">
         <button class="round-action" onclick="showFavorites()" aria-label="Избранное">♡</button>
-        <button id="ordersTop" class="pill-action" onclick="showMyOrders()"><span>👤</span><span class="action-label">Мои заказы</span></button>
+        <button id="profileTop" class="pill-action" onclick="showProfile()"><span>👤</span><span id="profileLabel" class="action-label">Личный кабинет</span></button>
         <button id="cartTop" class="round-action cart-action" aria-label="Корзина"><span>🛒</span><b id="cartCount">0</b></button>
       </div>
     </header>
@@ -73,6 +73,6 @@
     <section class="sheet"><div class="sheet-handle"></div><button class="close" onclick="closeModal()" aria-label="Закрыть">×</button><div id="modalBody"></div></section>
   </div>
 
-  <script src="/static/app.js?v=10.0.0"></script>
+  <script src="/static/app.js?v=10.2.0"></script>
 </body>
 </html>

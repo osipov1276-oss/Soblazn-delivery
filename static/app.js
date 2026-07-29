@@ -10,6 +10,95 @@ let favorites = new Set(JSON.parse(localStorage.getItem('soblazn_favorites') || 
 const money = n => new Intl.NumberFormat('ru-RU').format(Number(n || 0)) + ' ₸';
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 
+let guestProfile = null;
+
+async function loadProfile() {
+  try {
+    const r = await fetch('/api/profile');
+    const d = await r.json();
+    guestProfile = d.logged_in ? d.profile : null;
+    const label = document.getElementById('profileLabel');
+    if (label) label.textContent = guestProfile ? guestProfile.name : 'Личный кабинет';
+  } catch (e) { guestProfile = null; }
+}
+
+function profileAuthForm(mode = 'login') {
+  const register = mode === 'register';
+  modalBody.innerHTML = `
+    <div class="profile-head"><span class="profile-avatar">👤</span><div><small>SOBLAZN Delivery</small><h2>${register ? 'Регистрация' : 'Вход в профиль'}</h2></div></div>
+    <div class="form">
+      ${register ? '<input id="profileName" placeholder="Ваше имя" autocomplete="name">' : ''}
+      <input id="profilePhone" placeholder="Номер телефона" inputmode="tel" autocomplete="tel">
+      <input id="profilePin" placeholder="PIN-код из 4 цифр" inputmode="numeric" maxlength="4" type="password">
+      <button class="primary" onclick="submitProfileAuth('${mode}')">${register ? 'Создать профиль' : 'Войти'}</button>
+      <button class="secondary" onclick="profileAuthForm('${register ? 'login' : 'register'}')">${register ? 'У меня уже есть профиль' : 'Создать новый профиль'}</button>
+    </div>
+  `;
+  modal.classList.remove('hidden');
+}
+
+async function submitProfileAuth(mode) {
+  const payload = {
+    name: document.getElementById('profileName')?.value?.trim() || '',
+    phone: document.getElementById('profilePhone')?.value?.trim() || '',
+    pin: document.getElementById('profilePin')?.value?.trim() || ''
+  };
+  try {
+    const r = await fetch(`/api/profile/${mode}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    const d = await r.json();
+    if (!d.ok) { alert(d.error || 'Не удалось выполнить вход'); return; }
+    await loadProfile();
+    showProfile();
+  } catch(e) { alert('Не удалось связаться с сервером'); }
+}
+
+async function showProfile() {
+  await loadProfile();
+  if (!guestProfile) { profileAuthForm('login'); return; }
+  const addresses = guestProfile.addresses || [];
+  modalBody.innerHTML = `
+    <div class="profile-head"><span class="profile-avatar">${esc((guestProfile.name || 'Г').slice(0,1).toUpperCase())}</span><div><small>Личный кабинет</small><h2>${esc(guestProfile.name)}</h2><p>${esc(guestProfile.phone)}</p></div></div>
+    <div class="profile-grid">
+      <button onclick="showMyOrders()"><span>📦</span><b>Мои заказы</b><small>История и повтор заказа</small></button>
+      <button onclick="showFavorites()"><span>❤️</span><b>Избранное</b><small>Любимые блюда</small></button>
+    </div>
+    <div class="profile-section"><div class="profile-section-title"><h3>Адреса доставки</h3><button onclick="addProfileAddress()">+ Добавить</button></div>
+      ${addresses.length ? addresses.map((a,i)=>`<button class="address-card" onclick="selectProfileAddress(${i})"><span>📍</span><b>${esc(a)}</b></button>`).join('') : '<p class="muted">Сохранённых адресов пока нет.</p>'}
+    </div>
+    <button class="secondary" onclick="logoutProfile()">Выйти из профиля</button>
+  `;
+  modal.classList.remove('hidden');
+}
+
+async function addProfileAddress() {
+  const address = prompt('Введите адрес доставки') || '';
+  if (!address.trim()) return;
+  const r = await fetch('/api/profile/address', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({address})});
+  const d = await r.json();
+  if (!d.ok) { alert(d.error || 'Не удалось сохранить адрес'); return; }
+  await loadProfile();
+  showProfile();
+}
+
+function selectProfileAddress(index) {
+  const address = guestProfile?.addresses?.[index];
+  if (!address) return;
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem('soblazn_customer') || '{}'); } catch(e) {}
+  saved.address = address;
+  saved.name = guestProfile.name;
+  saved.phone = guestProfile.phone;
+  localStorage.setItem('soblazn_customer', JSON.stringify(saved));
+  alert('Адрес выбран для следующего заказа');
+}
+
+async function logoutProfile() {
+  await fetch('/api/profile/logout', {method:'POST'});
+  guestProfile = null;
+  await loadProfile();
+  closeModal();
+}
+
 fetch('/api/menu')
   .then(r => r.json())
   .then(d => {
@@ -117,13 +206,17 @@ function checkout() {
     saved = JSON.parse(localStorage.getItem('soblazn_customer') || '{}');
   } catch (e) {}
 
+  const profileName = guestProfile?.name || '';
+  const profilePhone = guestProfile?.phone || '';
+  const profileAddresses = guestProfile?.addresses || [];
   modalBody.innerHTML = `
     <h2>Оформление</h2>
+    ${guestProfile ? `<div class="checkout-profile">👤 Заказ оформляется для <b>${esc(guestProfile.name)}</b></div>` : `<button class="secondary" onclick="showProfile()">👤 Войти в личный кабинет</button>`}
     <div class="form">
-      <input id="name" placeholder="Ваше имя"
-        value="${saved.name || tg?.initDataUnsafe?.user?.first_name || ''}">
-      <input id="phone" placeholder="Телефон" value="${saved.phone || ''}">
-      <textarea id="address" placeholder="Адрес доставки">${saved.address || ''}</textarea>
+      <input id="name" placeholder="Ваше имя" value="${profileName || saved.name || tg?.initDataUnsafe?.user?.first_name || ''}" ${guestProfile ? 'readonly' : ''}>
+      <input id="phone" placeholder="Телефон" value="${profilePhone || saved.phone || ''}" ${guestProfile ? 'readonly' : ''}>
+      ${profileAddresses.length ? `<select id="savedAddress" onchange="document.getElementById('address').value=this.value"><option value="">Выберите сохранённый адрес</option>${profileAddresses.map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join('')}</select>` : ''}
+      <textarea id="address" placeholder="Адрес доставки">${saved.address || profileAddresses[0] || ''}</textarea>
       <textarea id="comment" placeholder="Комментарий к заказу"></textarea>
       <select id="payment">
         <option>Kaspi</option>
@@ -270,7 +363,7 @@ async function showMyOrders() {
     customer = JSON.parse(localStorage.getItem('soblazn_customer') || '{}');
   } catch (e) {}
 
-  let phone = customer.phone || '';
+  let phone = guestProfile?.phone || customer.phone || '';
 
   if (!tg?.initData && !phone) {
     phone = prompt('Введите номер телефона, который использовали при заказе') || '';
@@ -367,7 +460,8 @@ function repeatOrder(savedCart) {
   openCart();
 }
 
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
+  await loadProfile();
   try {
     const lastOrder = JSON.parse(
       localStorage.getItem('soblazn_last_order') || 'null'
