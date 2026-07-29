@@ -959,12 +959,14 @@ def api_integration_link():
             break
     if not matched_phone:
         return jsonify({"ok": False, "error": "Код привязки истёк или неверен"}), 404
-    if normalize_guest_phone(matched_phone) != phone:
-        return jsonify({"ok": False, "error": "Номер телефона в Telegram не совпадает с профилем сайта"}), 409
+    # Одноразовый секретный токен уже подтверждает, что привязку начал
+    # владелец текущей сессии сайта. Телефон бота сохраняем для справки,
+    # но не блокируем привязку из-за другого формата или старого номера.
     profile = profiles[matched_phone]
     profile.update({
         "telegram_id": telegram_id,
         "telegram_username": str(data.get("telegram_username", "")),
+        "telegram_phone": phone,
         "bonus_balance": max(0, int(data.get("bonus_balance", 0))),
         "total_spent": max(0, int(data.get("total_spent", 0))),
         "bonus_updated_at": datetime.now().isoformat(timespec="seconds"),
