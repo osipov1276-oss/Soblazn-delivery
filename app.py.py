@@ -35,6 +35,10 @@ DELIVERY_FEE = int(os.getenv("DELIVERY_FEE", "1000"))
 BOT_USERNAME = ""
 
 ORDERS_FILE = BASE_DIR / "mini_app_orders.json"
+PROFILES_FILE = BASE_DIR / "guest_profiles.json"
+BONUS_QUEUE_FILE = BASE_DIR / "bonus_sync_queue.json"
+INTEGRATION_SECRET = os.getenv("INTEGRATION_SECRET", "").strip()
+DATA_LOCK = threading.RLock()
 
 
 def load_orders() -> dict:
@@ -51,6 +55,55 @@ def save_orders(orders: dict) -> None:
         json.dumps(orders, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+
+
+def load_json_file(path: Path, default):
+    if not path.exists():
+        return default
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return default
+
+
+def save_json_file(path: Path, data) -> None:
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    tmp.replace(path)
+
+
+def load_profiles() -> dict:
+    data = load_json_file(PROFILES_FILE, {})
+    return data if isinstance(data, dict) else {}
+
+
+def save_profiles(profiles: dict) -> None:
+    save_json_file(PROFILES_FILE, profiles)
+
+
+def load_bonus_queue() -> dict:
+    data = load_json_file(BONUS_QUEUE_FILE, {})
+    return data if isinstance(data, dict) else {}
+
+
+def save_bonus_queue(queue: dict) -> None:
+    save_json_file(BONUS_QUEUE_FILE, queue)
+
+
+def integration_authorized() -> bool:
+    provided = request.headers.get("X-Integration-Secret", "").strip()
+    return bool(
+        INTEGRATION_SECRET
+        and provided
+        and hmac.compare_digest(INTEGRATION_SECRET, provided)
+    )
+
+
+def integration_denied():
+    return jsonify({"ok": False, "error": "Неверный INTEGRATION_SECRET"}), 403
 
 
 def status_keyboard(order_number: str, status: str):
@@ -519,6 +572,246 @@ def customer_key(init_data: str, phone: str) -> str:
         return f"phone:{normalized_phone}"
 
     return ""
+
+
+def find_profile(profiles: dict, *, phone: str = "", telegram_id=None, token: str = ""):
+    normalized = normalize_phone(phone)
+    telegram_id_text = str(telegram_id or "")
+    for key, profile in profiles.items():
+        if normalized and normalize_phone(profile.get("phone", key)) == normalized:
+            return key, profile
+        if telegram_id_text and str(profile.get("telegram_id") or "") == telegram_id_text:
+            return key, profile
+        if token and hmac.compare_digest(str(profile.get("link_token", "")), token):
+            return key, profile
+    return None, None
+
+
+def public_profile(profile: dict) -> dict:
+    return {
+        "phone": profile.get("phone", ""),
+        "linked": bool(profile.get("telegram_id")),
+        "telegram_id": profile.get("telegram_id"),
+        "telegram_username": profile.get("telegram_username", ""),
+        "bonus_balance": int(profile.get("bonus_balance") or 0),
+        "total_spent": int(profile.get("total_spent") or 0),
+        "updated_at": profile.get("updated_at"),
+    }
+
+
+@app.post("/api/club/profile")
+@app.post("/api/profile")
+def club_profile():
+    data = request.get_json(silent=True) or {}
+    phone = normalize_phone(data.get("phone", ""))
+    telegram_id = get_telegram_user_id(str(data.get("initData", "")))
+    if not phone and not telegram_id:
+        return jsonify({"ok": False, "error": "Введите номер телефона"}), 400
+    with DATA_LOCK:
+        profiles = load_profiles()
+        _, profile = find_profile(profiles, phone=phone, telegram_id=telegram_id)
+    if not profile:
+        return jsonify({
+            "ok": True,
+            "profile": {
+                "phone": phone,
+                "linked": False,
+                "telegram_id": None,
+                "telegram_username": "",
+                "bonus_balance": 0,
+                "total_spent": 0,
+                "updated_at": None,
+            },
+        })
+    return jsonify({"ok": True, "profile": public_profile(profile)})
+
+
+@app.post("/api/club/link-token")
+@app.post("/api/bonus/link")
+def club_link_token():
+    data = request.get_json(silent=True) or {}
+    phone = normalize_phone(data.get("phone", ""))
+    if not phone:
+        return jsonify({"ok": False, "error": "Введите номер телефона"}), 400
+    token = secrets.token_urlsafe(24)
+    now = datetime.now().isoformat(timespec="seconds")
+    with DATA_LOCK:
+        profiles = load_profiles()
+        key, profile = find_profile(profiles, phone=phone)
+        if not profile:
+            key = phone
+            profile = {
+                "phone": phone,
+                "telegram_id": None,
+                "telegram_username": "",
+                "bonus_balance": 0,
+                "total_spent": 0,
+            }
+        profile["link_token"] = token
+        profile["link_token_created_at"] = now
+        profile["updated_at"] = now
+        profiles[key] = profile
+        save_profiles(profiles)
+    username = os.getenv("CLUB_BOT_USERNAME", "soblazn_delivery_bot").lstrip("@")
+    return jsonify({
+        "ok": True,
+        "token": token,
+        "bot_link": f"https://t.me/{username}?start=club_{token}",
+    })
+
+
+@app.post("/api/club/spend")
+@app.post("/api/bonus/spend")
+def club_spend():
+    data = request.get_json(silent=True) or {}
+    phone = normalize_phone(data.get("phone", ""))
+    telegram_id = get_telegram_user_id(str(data.get("initData", "")))
+    try:
+        amount = int(data.get("amount") or 0)
+    except (TypeError, ValueError):
+        amount = 0
+    if amount <= 0:
+        return jsonify({"ok": False, "error": "Укажите количество бонусов"}), 400
+    with DATA_LOCK:
+        profiles = load_profiles()
+        _, profile = find_profile(profiles, phone=phone, telegram_id=telegram_id)
+        if not profile or not profile.get("telegram_id"):
+            return jsonify({"ok": False, "error": "Сначала подключите Telegram"}), 400
+        balance = int(profile.get("bonus_balance") or 0)
+        if amount > balance:
+            return jsonify({"ok": False, "error": "Недостаточно бонусов"}), 400
+        transaction_id = secrets.token_urlsafe(18)
+        queue = load_bonus_queue()
+        queue[transaction_id] = {
+            "transaction_id": transaction_id,
+            "telegram_id": int(profile["telegram_id"]),
+            "phone": profile.get("phone", phone),
+            "amount": amount,
+            "status": "pending",
+            "created_at": datetime.now().isoformat(timespec="seconds"),
+        }
+        save_bonus_queue(queue)
+    return jsonify({
+        "ok": True,
+        "transaction_id": transaction_id,
+        "status": "pending",
+        "message": "Запрос на списание отправлен",
+    })
+
+
+@app.get("/api/club/spend-status/<transaction_id>")
+@app.get("/api/bonus/spend-status/<transaction_id>")
+def club_spend_status(transaction_id: str):
+    with DATA_LOCK:
+        item = load_bonus_queue().get(transaction_id)
+    if not item:
+        return jsonify({"ok": False, "error": "Операция не найдена"}), 404
+    return jsonify({"ok": True, **item})
+
+
+@app.post("/api/integration/sync")
+def integration_sync():
+    if not integration_authorized():
+        return integration_denied()
+    data = request.get_json(silent=True) or {}
+    phone = normalize_phone(data.get("phone", ""))
+    telegram_id = data.get("telegram_id")
+    if not telegram_id:
+        return jsonify({"ok": False, "error": "telegram_id обязателен"}), 400
+    now = datetime.now().isoformat(timespec="seconds")
+    with DATA_LOCK:
+        profiles = load_profiles()
+        key, profile = find_profile(profiles, phone=phone, telegram_id=telegram_id)
+        if not profile:
+            key = phone or f"telegram:{telegram_id}"
+            profile = {"phone": phone}
+        profile.update({
+            "phone": phone or profile.get("phone", ""),
+            "telegram_id": int(telegram_id),
+            "telegram_username": str(data.get("telegram_username", "")),
+            "bonus_balance": int(data.get("bonus_balance") or 0),
+            "total_spent": int(data.get("total_spent") or 0),
+            "updated_at": now,
+        })
+        profiles[key] = profile
+        save_profiles(profiles)
+    return jsonify({"ok": True, "profile": public_profile(profile)})
+
+
+@app.post("/api/integration/link")
+def integration_link():
+    if not integration_authorized():
+        return integration_denied()
+    data = request.get_json(silent=True) or {}
+    token = str(data.get("token", ""))
+    telegram_id = data.get("telegram_id")
+    if not token or not telegram_id:
+        return jsonify({"ok": False, "error": "token и telegram_id обязательны"}), 400
+    now = datetime.now().isoformat(timespec="seconds")
+    with DATA_LOCK:
+        profiles = load_profiles()
+        key, profile = find_profile(profiles, token=token)
+        if not profile:
+            return jsonify({"ok": False, "error": "Ссылка устарела или уже использована"}), 404
+        profile.update({
+            "telegram_id": int(telegram_id),
+            "telegram_username": str(data.get("telegram_username", "")),
+            "phone": normalize_phone(data.get("phone", "")) or profile.get("phone", ""),
+            "bonus_balance": int(data.get("bonus_balance") or 0),
+            "total_spent": int(data.get("total_spent") or 0),
+            "link_token": "",
+            "linked_at": now,
+            "updated_at": now,
+        })
+        profiles[key] = profile
+        save_profiles(profiles)
+    return jsonify({"ok": True, "profile": public_profile(profile)})
+
+
+@app.get("/api/integration/pending-spends")
+def integration_pending_spends():
+    if not integration_authorized():
+        return integration_denied()
+    with DATA_LOCK:
+        queue = load_bonus_queue()
+        items = [item for item in queue.values() if item.get("status") == "pending"]
+    items.sort(key=lambda item: item.get("created_at", ""))
+    return jsonify({"ok": True, "items": items[:100]})
+
+
+@app.post("/api/integration/spend-result")
+def integration_spend_result():
+    if not integration_authorized():
+        return integration_denied()
+    data = request.get_json(silent=True) or {}
+    transaction_id = str(data.get("transaction_id", ""))
+    if not transaction_id:
+        return jsonify({"ok": False, "error": "transaction_id обязателен"}), 400
+    with DATA_LOCK:
+        queue = load_bonus_queue()
+        item = queue.get(transaction_id)
+        if not item:
+            return jsonify({"ok": False, "error": "Операция не найдена"}), 404
+        success = bool(data.get("success"))
+        item.update({
+            "status": "approved" if success else "rejected",
+            "success": success,
+            "balance": int(data.get("balance") or 0),
+            "total_spent": int(data.get("total_spent") or 0),
+            "error": str(data.get("error", "")),
+            "processed_at": datetime.now().isoformat(timespec="seconds"),
+        })
+        queue[transaction_id] = item
+        save_bonus_queue(queue)
+        profiles = load_profiles()
+        key, profile = find_profile(profiles, telegram_id=item.get("telegram_id"))
+        if profile:
+            profile["bonus_balance"] = item["balance"]
+            profile["total_spent"] = item["total_spent"]
+            profile["updated_at"] = item["processed_at"]
+            profiles[key] = profile
+            save_profiles(profiles)
+    return jsonify({"ok": True})
 
 
 @app.get("/")
