@@ -17,6 +17,8 @@ from flask import Flask, jsonify, render_template, request, redirect, url_for, s
 
 BASE_DIR = Path(__file__).resolve().parent
 
+ADMIN_API_SECRET = os.getenv('ADMIN_API_SECRET', '').strip()
+
 
 def load_env_file(path: Path) -> None:
     """Load KEY=VALUE settings without an extra dependency."""
