@@ -1191,7 +1191,7 @@ item_text = "\n".join(
         f"• {item['name']} × {item['qty']} = {item['total']} ₸"
         for item in items
     )
-    package_text = "\n".join(
+package_text = "\n".join(
         f"• {item['name']}: {item['qty']} × {item['unit']} ₸ = {item['total']} ₸"
         for item in packaging
     )
