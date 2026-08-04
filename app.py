@@ -17,7 +17,7 @@ from flask import Flask, jsonify, render_template, request, redirect, url_for, s
 
 BASE_DIR = Path(__file__).resolve().parent
 
-ADMIN_API_SECRET = os.getenv('ADMIN_API_SECRET', '').strip()
+ADMIN_API_SECRET = (os.getenv('ADMIN_API_SECRET') or os.getenv('ADMIN_API_KEY', '')).strip()
 
 
 def load_env_file(path: Path) -> None:
@@ -1173,25 +1173,17 @@ def api_order():
         if not profile_for_bonus or not profile_for_bonus.get("telegram_id"):
             return jsonify({"ok": False, "error": "Сначала подключите SOBLAZN CLUB в личном кабинете"}), 409
         available = int(profile_for_bonus.get("bonus_balance", 0))
-print(
-    "BONUS DEBUG:",
-    "phone=", guest_phone,
-    "available=", available,
-    "base_total=", base_total,
-    "requested=", requested_bonus,
-    "profile=", profile_for_bonus
-)
-max_allowed = min(available, base_total)
-if requested_bonus > max_allowed:
-    return jsonify({"ok": False, "error": f"Можно использовать не более {max_allowed} бонусов"}), 409
-bonus_used = requested_bonus
-total = base_total - bonus_used
+        max_allowed = min(available, base_total)
+        if requested_bonus > max_allowed:
+            return jsonify({"ok": False, "error": f"Можно использовать не более {max_allowed} бонусов"}), 409
+        bonus_used = requested_bonus
+    total = base_total - bonus_used
 
-item_text = "\n".join(
+    item_text = "\n".join(
         f"• {item['name']} × {item['qty']} = {item['total']} ₸"
         for item in items
     )
-package_text = "\n".join(
+    package_text = "\n".join(
         f"• {item['name']}: {item['qty']} × {item['unit']} ₸ = {item['total']} ₸"
         for item in packaging
     )
