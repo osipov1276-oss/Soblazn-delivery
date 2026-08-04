@@ -1181,11 +1181,11 @@ print(
     "requested=", requested_bonus,
     "profile=", profile_for_bonus
 )
-    max_allowed = min(available, base_total)
-        if requested_bonus > max_allowed:
-            return jsonify({"ok": False, "error": f"Можно использовать не более {max_allowed} бонусов"}), 409
-        bonus_used = requested_bonus
-    total = base_total - bonus_used
+max_allowed = min(available, base_total)
+if requested_bonus > max_allowed:
+    return jsonify({"ok": False, "error": f"Можно использовать не более {max_allowed} бонусов"}), 409
+bonus_used = requested_bonus
+total = base_total - bonus_used
 
     item_text = "\n".join(
         f"• {item['name']} × {item['qty']} = {item['total']} ₸"
