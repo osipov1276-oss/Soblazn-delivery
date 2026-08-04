@@ -1187,7 +1187,7 @@ if requested_bonus > max_allowed:
 bonus_used = requested_bonus
 total = base_total - bonus_used
 
-    item_text = "\n".join(
+item_text = "\n".join(
         f"• {item['name']} × {item['qty']} = {item['total']} ₸"
         for item in items
     )
